@@ -15,8 +15,11 @@ import type { BridgePairIntent } from "@/lib/elevenlabs/types";
 import { fetchAndStoreRecording } from "@/lib/elevenlabs/recordings";
 
 export const runtime = "nodejs";
-/** Vercel Fluid / Pro: allow long background bridges */
-export const maxDuration = 800;
+/**
+ * Vercel Hobby max is 300s; Pro/Fluid can raise further.
+ * Background bridges use waitUntil — return is still instant.
+ */
+export const maxDuration = 300;
 
 const schema = z.object({
   job_id: z.string().uuid(),
