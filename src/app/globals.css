@@ -57,3 +57,67 @@ body {
   scrollbar-width: thin;
   scrollbar-color: #cbd5e1 transparent;
 }
+
+/* WhatsApp-style chat bubbles + send-in animation */
+.wa-chat-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #94a3b8 transparent;
+}
+
+/* Incoming (agent) — tail on left */
+.wa-bubble-in {
+  border-radius: 0 10px 10px 10px;
+}
+.wa-bubble-in::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 8px 8px 0;
+  border-color: transparent #fff transparent transparent;
+}
+
+/* Outgoing (provider) — tail on right, WhatsApp green */
+.wa-bubble-out {
+  border-radius: 10px 0 10px 10px;
+}
+.wa-bubble-out::before {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 0;
+  width: 0;
+  height: 0;
+  border-style: solid;
+  border-width: 0 0 8px 8px;
+  border-color: transparent transparent transparent #d9fdd3;
+}
+
+/* Latest WhatsApp-like “message sent” pop: scale + rise + fade */
+@keyframes wa-message-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.92);
+  }
+  60% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.02);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.wa-msg-in {
+  animation: wa-message-in 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wa-msg-in {
+    animation: none;
+  }
+}

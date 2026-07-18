@@ -6,6 +6,7 @@ import { JobColumn } from "./JobColumn";
 import { CallsColumn } from "./CallsColumn";
 import { DealColumn } from "./DealColumn";
 import { DiscoveryPanel } from "./DiscoveryPanel";
+import { LearningPanel } from "./LearningPanel";
 import {
   emptySessions,
   initialJobState,
@@ -400,6 +401,7 @@ export function NegotiatorDashboard() {
               }
             />
           )}
+          <LearningPanel vertical={vertical.id} />
         </div>
         <div className="min-h-0 lg:h-[calc(100vh-5.5rem)]">
           <CallsColumn

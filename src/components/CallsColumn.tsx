@@ -116,9 +116,12 @@ function CallCard({
       </div>
 
       <div className="mt-3 border-t border-slate-100 pt-3">
+        <p className="mb-1.5 text-[10px] font-medium uppercase tracking-wide text-slate-400">
+          Messages · agent left · provider right · scroll all
+        </p>
         <TranscriptTicker
           lines={session.transcript}
-          max={3}
+          visibleCount={3}
           highlightTs={highlightTs}
           onLineClick={() => onHeard?.()}
         />

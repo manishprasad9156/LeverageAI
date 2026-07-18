@@ -8,6 +8,7 @@ import type {
   VerticalConfig,
 } from "@/lib/ui/types";
 import { redFlagThresholdPct, uiCopy } from "@/lib/ui/types";
+import { GrokOpinion } from "./GrokOpinion";
 
 type Props = {
   vertical: VerticalConfig;
@@ -134,6 +135,17 @@ export function DealColumn({
               }
             />
           ))}
+          <GrokOpinion
+            reportJson={{
+              vertical: vertical.id,
+              ranked: ranked.map((r) => ({
+                vendor: r.session.vendor_name,
+                total: r.session.current_price,
+                red_flag: r.red_flag,
+                why: r.why,
+              })),
+            }}
+          />
         </div>
       )}
     </section>
