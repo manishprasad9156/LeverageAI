@@ -36,6 +36,20 @@ export function NegotiatorDashboard() {
     replayParam === "1";
   const replayLive = replayParam === "live";
 
+  const VERTICALS = [
+    { id: "hvac", label: "HVAC" },
+    { id: "movers", label: "Movers" },
+    { id: "medical-imaging", label: "MRI Imaging" },
+    { id: "auto-repair", label: "Auto Repair" },
+  ] as const;
+
+  const switchVertical = (id: string) => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("vertical", id);
+    // keep replay if present
+    window.location.href = url.toString();
+  };
+
   const [vertical, setVertical] = useState<VerticalConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [state, setState] = useState<JobState | null>(null);
@@ -336,8 +350,32 @@ export function NegotiatorDashboard() {
                     : ""}
               </p>
             </div>
+            <div className="ml-4 flex flex-wrap gap-1">
+              {VERTICALS.map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => switchVertical(v.id)}
+                  className={`rounded-full px-2.5 py-1 text-[11px] font-medium ${
+                    verticalId === v.id
+                      ? "bg-emerald-600 text-white"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
           </div>
-          <PhasePill phase={state.phase} />
+          <div className="flex items-center gap-2">
+            <a
+              href="/architecture"
+              className="text-[11px] font-medium text-slate-500 hover:text-emerald-700"
+            >
+              Architecture
+            </a>
+            <PhasePill phase={state.phase} />
+          </div>
         </div>
       </header>
 

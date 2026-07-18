@@ -1,0 +1,247 @@
+{
+  "id": "auto-repair",
+  "displayName": "Auto Repair",
+  "name": "Auto Repair",
+  "label": "Auto Repair",
+  "short_label": "Auto repair",
+  "description": "Phone-quoted auto repair \u2014 ~47% quote variation (vertical-analysis-2026).",
+  "intake": {
+    "questions": [
+      {
+        "id": "vehicle_year",
+        "prompt": "Vehicle year?",
+        "type": "number",
+        "required": true
+      },
+      {
+        "id": "vehicle_make",
+        "prompt": "Make?",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "vehicle_model",
+        "prompt": "Model?",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "symptom",
+        "prompt": "Symptom / complaint?",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "diagnostic_done",
+        "prompt": "Diagnostic already done?",
+        "type": "enum",
+        "options": [
+          "yes",
+          "no"
+        ],
+        "required": true
+      },
+      {
+        "id": "urgency",
+        "prompt": "Urgency?",
+        "type": "enum",
+        "options": [
+          "emergency_today",
+          "this_week",
+          "flexible"
+        ],
+        "required": true
+      },
+      {
+        "id": "zip",
+        "prompt": "ZIP?",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "notes",
+        "prompt": "Other notes?",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "job_spec_schema": {
+    "fields": {
+      "vehicle_year": {
+        "type": "number",
+        "required": true
+      },
+      "vehicle_make": {
+        "type": "string",
+        "required": true
+      },
+      "vehicle_model": {
+        "type": "string",
+        "required": true
+      },
+      "symptom": {
+        "type": "string",
+        "required": true
+      },
+      "diagnostic_done": {
+        "type": "string",
+        "required": true
+      },
+      "urgency": {
+        "type": "string",
+        "required": true
+      },
+      "zip": {
+        "type": "string",
+        "required": true
+      },
+      "notes": {
+        "type": "string",
+        "required": false
+      },
+      "job_kind": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "job_spec_fields": [
+    {
+      "key": "vehicle_year",
+      "label": "Year",
+      "type": "number"
+    },
+    {
+      "key": "vehicle_make",
+      "label": "Make",
+      "type": "string"
+    },
+    {
+      "key": "vehicle_model",
+      "label": "Model",
+      "type": "string"
+    },
+    {
+      "key": "symptom",
+      "label": "Symptom",
+      "type": "string"
+    },
+    {
+      "key": "diagnostic_done",
+      "label": "Diagnostic done",
+      "type": "string"
+    },
+    {
+      "key": "zip",
+      "label": "ZIP",
+      "type": "string"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "tough",
+      "displayName": "Summit Air",
+      "name": "Summit Air",
+      "role": "tough",
+      "persona": "tough",
+      "role_label": "Tough on price",
+      "public_blurb": "Independent auto repair \u2014 phone quotes for common jobs.",
+      "pricing_strategy_secret": "Opens high (~$9.2\u20139.5k for 3-ton install). Will concede once a real written competing bid is cited; floor around mid-benchmark, not race-to-bottom.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+    },
+    {
+      "id": "stonewaller",
+      "displayName": "ComfortPro",
+      "name": "ComfortPro",
+      "role": "stonewaller",
+      "persona": "stonewaller",
+      "role_label": "No phone quotes",
+      "public_blurb": "Independent auto repair \u2014 phone quotes for common jobs.",
+      "pricing_strategy_secret": "Refuses firm phone quotes. Pushes callback/on-site only. Session should end documented_decline with callback commitment logged.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+    },
+    {
+      "id": "upseller",
+      "displayName": "ValueHVAC",
+      "name": "ValueHVAC",
+      "role": "upseller",
+      "persona": "upseller",
+      "role_label": "Lowball + fees",
+      "public_blurb": "Independent auto repair \u2014 phone quotes for common jobs.",
+      "pricing_strategy_secret": "Lowballs equipment line then layers refrigerant, permit, haul-away, and diagnostic fees. All must surface as itemized line_items; total often triggers red-flag vs benchmark.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+    }
+  ],
+  "benchmarks": {
+    "common_repair": {
+      "label": "Common auto repair job (parts + labor ballpark)",
+      "unit": "job",
+      "fair_low": 350,
+      "fair_high": 1200,
+      "low": 350,
+      "mid": 775,
+      "high": 1200,
+      "currency": "USD",
+      "source": "vertical-analysis-2026 table (~47% quote variation); labor rate red-flag if >1.6x metro median",
+      "retrieved": "2026-07"
+    },
+    "labor_rate": {
+      "label": "Shop labor rate (hourly)",
+      "unit": "hour",
+      "fair_low": 90,
+      "fair_high": 180,
+      "low": 90,
+      "mid": 135,
+      "high": 180,
+      "currency": "USD",
+      "source": "vertical-analysis-2026 / industry labor rate surveys",
+      "retrieved": "2026-07"
+    }
+  },
+  "default_job_type": "common_repair",
+  "red_flag": {
+    "threshold_below_benchmark": 0.3,
+    "threshold_pct_below_benchmark": 30,
+    "never_rank_first": true,
+    "benchmark_key": "common_repair",
+    "description": "Bait if \u226530% below fair band; also flag labor rate >1.6x metro median.",
+    "labor_rate_multiple": 1.6
+  },
+  "negotiation_levers": [
+    "Require full itemization of equipment, labor, refrigerant, permit, and haul-away",
+    "Cite only real competing written bids from get_competing_bids (never invent)",
+    "Push back on padded or vague fees until line items are clear",
+    "Disclose AI/assistant role honestly if asked whether you are a robot",
+    "Close every call with a structured outcome: itemized_quote | callback_commitment | documented_decline"
+  ],
+  "glossary": {
+    "tonnage": "Cooling capacity; 1 ton \u2248 12,000 BTU/hr. Typical homes use 2\u20135 ton units.",
+    "SEER2": "Seasonal Energy Efficiency Ratio (updated standard) for AC efficiency.",
+    "callout": "Trip/diagnostic fee charged for a tech visit before repair.",
+    "line_set": "Copper refrigerant tubing connecting outdoor and indoor units.",
+    "ductwork": "Supply/return air paths; leaks reduce efficiency and comfort.",
+    "R-410A": "Common residential refrigerant; recovery and recharge are regulated."
+  },
+  "demo_defaults": {
+    "vehicle_year": 2018,
+    "vehicle_make": "Toyota",
+    "vehicle_model": "Camry",
+    "symptom": "front brake noise / pad replacement estimate",
+    "diagnostic_done": "no",
+    "urgency": "this_week",
+    "zip": "28202",
+    "notes": "Want itemized parts, labor hours, labor rate, shop fees, diagnostic fee.",
+    "job_kind": "common_repair",
+    "job_type": "common_repair"
+  },
+  "ui": {
+    "job_column_title": "Your repair",
+    "calls_column_title": "The calls",
+    "deal_column_title": "Your deal",
+    "confirm_button": "Looks right \u2014 get me quotes",
+    "demo_job_button": "Use demo repair job",
+    "voice_intake_label": "Voice intake",
+    "pdf_upload_label": "Drop an estimate PDF"
+  }
+}

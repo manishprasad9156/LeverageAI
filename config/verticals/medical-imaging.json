@@ -1,0 +1,231 @@
+{
+  "id": "medical-imaging",
+  "displayName": "MRI / Medical Imaging (cash price)",
+  "name": "MRI / Medical Imaging (cash price)",
+  "label": "MRI / Medical Imaging (cash price)",
+  "short_label": "Cash MRI",
+  "description": "Shop cash-pay MRI prices across imaging centers \u2014 high opacity, phone-quoted.",
+  "intake": {
+    "questions": [
+      {
+        "id": "procedure",
+        "prompt": "What procedure? (e.g. MRI brain, MRI knee)",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "body_part",
+        "prompt": "Body part / region?",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "contrast",
+        "prompt": "Contrast required?",
+        "type": "enum",
+        "options": [
+          "yes",
+          "no",
+          "unknown"
+        ],
+        "required": true
+      },
+      {
+        "id": "referral_in_hand",
+        "prompt": "Do you have a referral?",
+        "type": "enum",
+        "options": [
+          "yes",
+          "no"
+        ],
+        "required": true
+      },
+      {
+        "id": "urgency",
+        "prompt": "How soon?",
+        "type": "enum",
+        "options": [
+          "this_week",
+          "flexible",
+          "emergency_today"
+        ],
+        "required": true
+      },
+      {
+        "id": "zip",
+        "prompt": "ZIP code?",
+        "type": "string",
+        "required": true
+      },
+      {
+        "id": "notes",
+        "prompt": "Insurance/cash-pay notes?",
+        "type": "string",
+        "required": false
+      }
+    ]
+  },
+  "job_spec_schema": {
+    "fields": {
+      "procedure": {
+        "type": "string",
+        "required": true
+      },
+      "body_part": {
+        "type": "string",
+        "required": true
+      },
+      "contrast": {
+        "type": "string",
+        "required": true
+      },
+      "referral_in_hand": {
+        "type": "string",
+        "required": true
+      },
+      "urgency": {
+        "type": "string",
+        "required": true
+      },
+      "zip": {
+        "type": "string",
+        "required": true
+      },
+      "notes": {
+        "type": "string",
+        "required": false
+      },
+      "job_kind": {
+        "type": "string",
+        "required": false
+      }
+    }
+  },
+  "job_spec_fields": [
+    {
+      "key": "procedure",
+      "label": "Procedure",
+      "type": "string"
+    },
+    {
+      "key": "body_part",
+      "label": "Body part",
+      "type": "string"
+    },
+    {
+      "key": "contrast",
+      "label": "Contrast",
+      "type": "string"
+    },
+    {
+      "key": "referral_in_hand",
+      "label": "Referral",
+      "type": "string"
+    },
+    {
+      "key": "urgency",
+      "label": "Urgency",
+      "type": "string"
+    },
+    {
+      "key": "zip",
+      "label": "ZIP",
+      "type": "string"
+    }
+  ],
+  "vendors": [
+    {
+      "id": "tough",
+      "displayName": "Summit Air",
+      "name": "Summit Air",
+      "role": "tough",
+      "persona": "tough",
+      "role_label": "Tough on price",
+      "public_blurb": "Imaging center \u2014 cash-pay MRI quotes by phone.",
+      "pricing_strategy_secret": "Imaging counter persona; use dynamic job_spec only.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+    },
+    {
+      "id": "stonewaller",
+      "displayName": "ComfortPro",
+      "name": "ComfortPro",
+      "role": "stonewaller",
+      "persona": "stonewaller",
+      "role_label": "No phone quotes",
+      "public_blurb": "Imaging center \u2014 cash-pay MRI quotes by phone.",
+      "pricing_strategy_secret": "Imaging counter persona; use dynamic job_spec only.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+    },
+    {
+      "id": "upseller",
+      "displayName": "ValueHVAC",
+      "name": "ValueHVAC",
+      "role": "upseller",
+      "persona": "upseller",
+      "role_label": "Lowball + fees",
+      "public_blurb": "Imaging center \u2014 cash-pay MRI quotes by phone.",
+      "pricing_strategy_secret": "Imaging counter persona; use dynamic job_spec only.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+    }
+  ],
+  "benchmarks": {
+    "mri_cash": {
+      "label": "Cash-price MRI (facility fee)",
+      "unit": "exam",
+      "fair_low": 400,
+      "fair_high": 4000,
+      "low": 400,
+      "mid": 1500,
+      "high": 4000,
+      "currency": "USD",
+      "source": "Healthcare price-transparency studies / vertical-analysis-2026 (verify Turquoise Health / Fair Health when live)",
+      "retrieved": "2026-07",
+      "notes": "Up to ~10x metro spread possible; red-flag if >2.5x mid or refusal to state cash price."
+    }
+  },
+  "default_job_type": "mri_cash",
+  "red_flag": {
+    "threshold_below_benchmark": 0.3,
+    "threshold_pct_below_benchmark": 30,
+    "never_rank_first": true,
+    "benchmark_key": "mri_cash",
+    "description": "Red-flag if quote >2.5x metro median cash mid, or refusal to state cash price (price opacity).",
+    "opacity_flag": true,
+    "high_multiple": 2.5
+  },
+  "negotiation_levers": [
+    "Require full itemization of equipment, labor, refrigerant, permit, and haul-away",
+    "Cite only real competing written bids from get_competing_bids (never invent)",
+    "Push back on padded or vague fees until line items are clear",
+    "Disclose AI/assistant role honestly if asked whether you are a robot",
+    "Close every call with a structured outcome: itemized_quote | callback_commitment | documented_decline"
+  ],
+  "glossary": {
+    "tonnage": "Cooling capacity; 1 ton \u2248 12,000 BTU/hr. Typical homes use 2\u20135 ton units.",
+    "SEER2": "Seasonal Energy Efficiency Ratio (updated standard) for AC efficiency.",
+    "callout": "Trip/diagnostic fee charged for a tech visit before repair.",
+    "line_set": "Copper refrigerant tubing connecting outdoor and indoor units.",
+    "ductwork": "Supply/return air paths; leaks reduce efficiency and comfort.",
+    "R-410A": "Common residential refrigerant; recovery and recharge are regulated."
+  },
+  "demo_defaults": {
+    "procedure": "MRI brain without contrast",
+    "body_part": "brain",
+    "contrast": "no",
+    "referral_in_hand": "yes",
+    "urgency": "this_week",
+    "zip": "28202",
+    "notes": "Cash-pay only; need total out-of-pocket.",
+    "job_kind": "mri_cash",
+    "job_type": "mri_cash"
+  },
+  "ui": {
+    "job_column_title": "Your scan",
+    "calls_column_title": "The calls",
+    "deal_column_title": "Your deal",
+    "confirm_button": "Looks right \u2014 get me cash quotes",
+    "demo_job_button": "Use demo MRI job",
+    "voice_intake_label": "Voice intake",
+    "pdf_upload_label": "Drop a referral / estimate PDF"
+  }
+}

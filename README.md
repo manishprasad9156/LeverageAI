@@ -88,6 +88,20 @@ Real PSTN is a **chosen-not-built** decision for the MVP. See `src/lib/telephony
 
 `POST /api/sessions/start` returns immediately with `{ live: true, status: "bridging" }` and runs agent↔agent bridges **in the background**. Poll `GET /api/jobs/:id/state` or SSE `/api/events` — sessions move `connecting` → `live` → `closed`.
 
+## Architecture (production stack)
+
+```
+Orchestrator (XState v5) — /architecture
+  → ElevenLabs Agents (5): intake · negotiator · tough · stonewaller · upseller
+  → Webhook tools (x-tools-secret) → Neon Postgres
+  → Google Places (search + details, 7d cache) → ProviderScore
+  → Playbook learnings → negotiator dynamic vars
+  → Report (ranked · leverage chain · export)
+Optional: Twilio PSTN (ENABLE_REAL_OUTBOUND) · Grok voice second opinion · Vercel Blob
+```
+
+**TCPA warning:** Real outbound cold-calls to businesses have legal risk. Keep `ENABLE_REAL_OUTBOUND=false` unless you only dial numbers you own / have consent for (demo teammate phone).
+
 ### Production deploy checklist (Vercel + Neon)
 
 1. **Neon:** create project → run `scripts/migrate.sql` → set `DATABASE_URL` (required on serverless).

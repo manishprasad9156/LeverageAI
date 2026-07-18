@@ -112,6 +112,7 @@ function buildWebhookTool(
   const request_headers: Record<string, string> = {};
   if (secret) {
     request_headers["Authorization"] = `Bearer ${secret}`;
+    request_headers["x-tools-secret"] = secret;
     request_headers["x-leverageai-secret"] = secret;
   }
 

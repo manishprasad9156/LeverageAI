@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
+import { waitUntil } from "@vercel/functions";
 import { getStore } from "@/lib/db";
+import { hasDatabaseUrl } from "@/lib/db/pool";
 import {
   loadVertical,
   toPublicVertical,
@@ -13,63 +15,43 @@ import type { BridgePairIntent } from "@/lib/elevenlabs/types";
 import { fetchAndStoreRecording } from "@/lib/elevenlabs/recordings";
 
 export const runtime = "nodejs";
-/** Vercel / Fluid: allow long background bridges when platform supports it */
-export const maxDuration = 300;
+/** Vercel Fluid / Pro: allow long background bridges */
+export const maxDuration = 800;
 
 const schema = z.object({
   job_id: z.string().uuid(),
-  /** When true and live mode is on, start bridges (default true). */
   live: z.boolean().optional(),
 });
 
-/**
- * Schedule work that may outlive the HTTP response.
- * - Prefer Next.js `after()` when available
- * - Else Vercel `waitUntil`
- * - Else fire-and-forget (localhost / long-lived Node)
- */
 function scheduleBackground(work: () => Promise<void>): void {
-  const task = () =>
-    work().catch((e) => console.error("[sessions/start background]", e));
-
+  const promise = work().catch((e) =>
+    console.error("[sessions/start background]", e)
+  );
   try {
-    // next/server after() — Next 15+
+    waitUntil(promise);
+    return;
+  } catch {
+    /* not on Vercel */
+  }
+  try {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { after } = require("next/server") as {
       after?: (fn: () => void | Promise<void>) => void;
     };
     if (typeof after === "function") {
-      after(task);
+      after(() => promise);
       return;
     }
   } catch {
     /* no after */
   }
-
-  try {
-    // @vercel/functions waitUntil — optional dependency
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require("@vercel/functions") as {
-      waitUntil?: (p: Promise<unknown>) => void;
-    };
-    if (typeof mod.waitUntil === "function") {
-      mod.waitUntil(task());
-      return;
-    }
-  } catch {
-    /* no vercel functions */
-  }
-
-  // Localhost / ngrok: Node process stays up
-  void task();
+  void promise;
 }
 
 /**
- * POST /api/sessions/start — create 3 sessions from config vendors.
- *
- * Live mode: returns immediately with status "bridging" and runs
- * sequential WebSocket bridges in the background. UI polls/SSE for updates.
- * Scaffold / replay: no bridges (same as before).
+ * POST /api/sessions/start
+ * Live: fire-and-forget bridges, return immediately with status "bridging".
+ * Replay/scaffold: create sessions only.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -94,14 +76,28 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const wantLive = isLiveModeEnabled() && parsed.data.live !== false;
+    if (wantLive && !hasDatabaseUrl()) {
+      return NextResponse.json(
+        {
+          error:
+            "live mode requires Postgres — in-memory store breaks across serverless instances. Set DATABASE_URL (Neon).",
+          code: "DATABASE_REQUIRED_FOR_LIVE",
+        },
+        { status: 400 }
+      );
+    }
+
     const existing = await store.listSessionsByJob(job.id);
     if (existing.length > 0) {
       return NextResponse.json({
         sessions: existing,
         already_started: true,
         job_id: job.id,
-        live: isLiveModeEnabled(),
-        status: existing.some((s) => s.status === "live" || s.status === "connecting")
+        live: wantLive,
+        status: existing.some(
+          (s) => s.status === "live" || s.status === "connecting"
+        )
           ? "bridging"
           : "ready",
       });
@@ -139,10 +135,7 @@ export async function POST(req: NextRequest) {
 
     await store.updateJob(job.id, { status: "running" });
 
-    const live = isLiveModeEnabled() && parsed.data.live !== false;
-
-    if (live) {
-      // Mark pending sessions as connecting before response returns
+    if (wantLive) {
       for (const s of sessions) {
         await store.updateSession(s.id, { status: "connecting" });
         publish({
@@ -168,42 +161,90 @@ export async function POST(req: NextRequest) {
       const jobId = job.id;
       scheduleBackground(async () => {
         console.log(
-          `[sessions/start] background bridges for job ${jobId} (${intents.length} sequential)`
+          `[sessions/start] background bridges job=${jobId} n=${intents.length}`
         );
-        const results = await runBridgesSequential(intents);
-        console.log(
-          `[sessions/start] bridges done job=${jobId}`,
-          results.map((r) => ({ session: r.sessionId, ok: r.ok, err: r.error }))
-        );
+        try {
+          const results = await runBridgesSequential(intents);
+          console.log(
+            `[sessions/start] bridges done`,
+            results.map((r) => ({ id: r.sessionId, ok: r.ok, err: r.error }))
+          );
 
-        // Best-effort recordings after each bridge closes
-        const store2 = getStore();
-        for (const s of await store2.listSessionsByJob(jobId)) {
-          if (s.negotiator_conversation_id) {
-            await fetchAndStoreRecording(
-              s.id,
-              s.negotiator_conversation_id
-            ).catch((e) =>
-              console.warn("[sessions/start] recording failed", s.id, e)
-            );
+          for (const r of results) {
+            if (!r.ok) {
+              publish({
+                type: "session",
+                job_id: jobId,
+                session_id: r.sessionId,
+                payload: {
+                  status: "error",
+                  event: "session_error",
+                  reason: "bridge_error",
+                  error: r.error,
+                },
+              });
+              const storeE = getStore();
+              const sess = await storeE.getSession(r.sessionId);
+              if (sess && !sess.outcome_type) {
+                await storeE.closeSession(
+                  r.sessionId,
+                  "documented_decline",
+                  `bridge_error: ${r.error || "unknown"}`
+                );
+              }
+            }
           }
-        }
 
-        // Mark job complete when all sessions closed/errored
-        const finalSessions = await store2.listSessionsByJob(jobId);
-        const allDone = finalSessions.every(
-          (s) =>
-            s.status === "closed" ||
-            s.status === "error" ||
-            s.outcome_type != null
-        );
-        if (allDone) {
-          await store2.updateJob(jobId, { status: "complete" });
-          publish({
-            type: "job",
-            job_id: jobId,
-            payload: { status: "complete" },
-          });
+          const store2 = getStore();
+          for (const s of await store2.listSessionsByJob(jobId)) {
+            if (s.negotiator_conversation_id) {
+              await fetchAndStoreRecording(
+                s.id,
+                s.negotiator_conversation_id
+              ).catch((e) =>
+                console.warn("[sessions/start] recording", s.id, e)
+              );
+            }
+          }
+
+          const finalSessions = await store2.listSessionsByJob(jobId);
+          const allDone = finalSessions.every(
+            (s) =>
+              s.status === "closed" ||
+              s.status === "error" ||
+              s.outcome_type != null
+          );
+          if (allDone) {
+            await store2.updateJob(jobId, { status: "complete" });
+            publish({
+              type: "job",
+              job_id: jobId,
+              payload: { status: "complete" },
+            });
+          }
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e);
+          console.error("[sessions/start] bridge fatal", msg);
+          const storeE = getStore();
+          for (const s of await storeE.listSessionsByJob(jobId)) {
+            publish({
+              type: "session",
+              job_id: jobId,
+              session_id: s.id,
+              payload: {
+                event: "session_error",
+                reason: "bridge_error",
+                error: msg,
+              },
+            });
+            if (!s.outcome_type) {
+              await storeE.closeSession(
+                s.id,
+                "documented_decline",
+                `bridge_error: ${msg}`
+              );
+            }
+          }
         }
       });
     }
@@ -215,10 +256,9 @@ export async function POST(req: NextRequest) {
       {
         job_id: job.id,
         sessions: latest,
-        live,
-        status: live ? "bridging" : "ready",
-        /** Bridges run in background when live — poll /api/jobs/:id/state or SSE */
-        bridge_async: live,
+        live: wantLive,
+        status: wantLive ? "bridging" : "ready",
+        bridge_async: wantLive,
         vendors: pub.vendors.map((v) => ({
           id: v.id,
           name: v.name ?? v.displayName,
