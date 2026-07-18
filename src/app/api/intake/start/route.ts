@@ -1,18 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createIntakeDraft } from "@/lib/intake/draftStore";
 import { tryGetAgentId } from "@/lib/elevenlabs/env";
-import { getConversationSignedUrl, normalizeSignedUrl } from "@/lib/elevenlabs/conversations";
+import {
+  getConversationSignedUrl,
+  normalizeSignedUrl,
+} from "@/lib/elevenlabs/conversations";
 
 /**
  * POST /api/intake/start
- * Creates an intake draft id the UI polls; returns agent id + optional signed URL.
+ * Creates a durable intake draft (Neon) the UI polls; returns talk URL.
  */
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const vertical =
       typeof body.vertical === "string" ? body.vertical : "hvac";
-    const draft = createIntakeDraft(vertical);
+    const draft = await createIntakeDraft(vertical);
     const agentId = tryGetAgentId("intake");
 
     let signed_url: string | null = null;
@@ -30,7 +33,6 @@ export async function POST(req: NextRequest) {
       vertical,
       agent_id: agentId,
       signed_url,
-      /** Dynamic vars to pass if using widget */
       dynamic_variables: {
         intake_id: draft.id,
         vertical,
@@ -38,7 +40,7 @@ export async function POST(req: NextRequest) {
       talk_url: agentId
         ? `https://elevenlabs.io/app/talk-to?agent_id=${encodeURIComponent(agentId)}`
         : null,
-      poll_url: `/api/tools/submit_spec?intake_id=${draft.id}`,
+      poll_url: `/api/intake/status?intake_id=${draft.id}`,
     });
   } catch (e) {
     return NextResponse.json(

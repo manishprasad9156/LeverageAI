@@ -71,14 +71,13 @@ export async function POST(req: NextRequest) {
 
     let draft;
     if (b.intake_id) {
-      draft = fillIntakeDraft(b.intake_id, job_spec);
+      draft = await fillIntakeDraft(b.intake_id, job_spec);
       if (!draft) {
-        // Create if agent sent unknown id
-        const created = createIntakeDraft(vertical);
-        draft = fillIntakeDraft(created.id, job_spec);
+        const created = await createIntakeDraft(vertical);
+        draft = await fillIntakeDraft(created.id, job_spec);
       }
     } else {
-      draft = fillLatestByVertical(vertical, job_spec);
+      draft = await fillLatestByVertical(vertical, job_spec);
     }
 
     return NextResponse.json({
@@ -96,16 +95,4 @@ export async function POST(req: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/** GET helper for UI polling */
-export async function GET(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get("intake_id");
-  const vertical = req.nextUrl.searchParams.get("vertical") || "hvac";
-  if (id) {
-    const d = getIntakeDraft(id);
-    return NextResponse.json({ draft: d });
-  }
-  const { getLatestFilled } = await import("@/lib/intake/draftStore");
-  return NextResponse.json({ draft: getLatestFilled(vertical) });
 }

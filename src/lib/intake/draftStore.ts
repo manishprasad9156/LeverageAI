@@ -1,9 +1,11 @@
 /**
- * Short-lived intake drafts so voice agents (submit_spec webhook)
- * can fill the JOB form the UI is watching.
+ * Intake drafts so voice agents (submit_spec) fill the JOB form.
+ * Uses Postgres when DATABASE_URL is set (required on Vercel);
+ * falls back to memory for pure local demos without DB.
  */
 import { randomUUID } from "crypto";
 import type { JobSpec } from "@/lib/types";
+import { getPool, hasDatabaseUrl } from "@/lib/db/pool";
 
 export type IntakeDraft = {
   id: string;
@@ -14,15 +16,11 @@ export type IntakeDraft = {
   updated_at: string;
 };
 
-type Tables = {
-  drafts: Map<string, IntakeDraft>;
-};
+type Mem = { drafts: Map<string, IntakeDraft> };
 
-function tables(): Tables {
-  const g = globalThis as unknown as { __intakeDrafts?: Tables };
-  if (!g.__intakeDrafts) {
-    g.__intakeDrafts = { drafts: new Map() };
-  }
+function mem(): Mem {
+  const g = globalThis as unknown as { __intakeDrafts?: Mem };
+  if (!g.__intakeDrafts) g.__intakeDrafts = { drafts: new Map() };
   return g.__intakeDrafts;
 }
 
@@ -30,61 +28,113 @@ function now() {
   return new Date().toISOString();
 }
 
-export function createIntakeDraft(vertical: string): IntakeDraft {
-  const d: IntakeDraft = {
-    id: randomUUID(),
-    vertical,
-    job_spec: null,
-    status: "pending",
-    created_at: now(),
-    updated_at: now(),
+function mapRow(row: Record<string, unknown>): IntakeDraft {
+  return {
+    id: String(row.id),
+    vertical: String(row.vertical),
+    job_spec: (row.job_spec as JobSpec | null) ?? null,
+    status: row.status as IntakeDraft["status"],
+    created_at: new Date(String(row.created_at)).toISOString(),
+    updated_at: new Date(String(row.updated_at)).toISOString(),
   };
-  tables().drafts.set(d.id, d);
-  // TTL cleanup ~30 min
-  setTimeout(
-    () => {
-      const cur = tables().drafts.get(d.id);
-      if (cur && cur.status === "pending") {
-        tables().drafts.set(d.id, { ...cur, status: "expired" });
-      }
-    },
-    30 * 60 * 1000
-  ).unref?.();
-  return d;
 }
 
-export function getIntakeDraft(id: string): IntakeDraft | null {
-  return tables().drafts.get(id) ?? null;
+export async function createIntakeDraft(
+  vertical: string
+): Promise<IntakeDraft> {
+  const id = randomUUID();
+  const created_at = now();
+  if (!hasDatabaseUrl()) {
+    const d: IntakeDraft = {
+      id,
+      vertical,
+      job_spec: null,
+      status: "pending",
+      created_at,
+      updated_at: created_at,
+    };
+    mem().drafts.set(id, d);
+    return d;
+  }
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `INSERT INTO intake_drafts (id, vertical, job_spec, status)
+     VALUES ($1, $2, NULL, 'pending')
+     RETURNING *`,
+    [id, vertical]
+  );
+  return mapRow(rows[0]);
 }
 
-export function fillIntakeDraft(
+export async function getIntakeDraft(
+  id: string
+): Promise<IntakeDraft | null> {
+  if (!hasDatabaseUrl()) {
+    return mem().drafts.get(id) ?? null;
+  }
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT * FROM intake_drafts WHERE id = $1`,
+    [id]
+  );
+  return rows[0] ? mapRow(rows[0]) : null;
+}
+
+export async function fillIntakeDraft(
   id: string,
   job_spec: JobSpec
-): IntakeDraft | null {
-  const cur = tables().drafts.get(id);
-  if (!cur) return null;
-  const next: IntakeDraft = {
-    ...cur,
-    job_spec,
-    status: "filled",
-    updated_at: now(),
-  };
-  tables().drafts.set(id, next);
-  return next;
+): Promise<IntakeDraft | null> {
+  if (!hasDatabaseUrl()) {
+    const cur = mem().drafts.get(id);
+    if (!cur) return null;
+    const next: IntakeDraft = {
+      ...cur,
+      job_spec,
+      status: "filled",
+      updated_at: now(),
+    };
+    mem().drafts.set(id, next);
+    return next;
+  }
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `UPDATE intake_drafts
+     SET job_spec = $2::jsonb, status = 'filled', updated_at = now()
+     WHERE id = $1
+     RETURNING *`,
+    [id, JSON.stringify(job_spec)]
+  );
+  return rows[0] ? mapRow(rows[0]) : null;
 }
 
-/** Also store latest filled draft per vertical for easy poll without id */
-export function fillLatestByVertical(
+export async function fillLatestByVertical(
   vertical: string,
   job_spec: JobSpec
-): IntakeDraft {
-  const d = createIntakeDraft(vertical);
-  return fillIntakeDraft(d.id, job_spec)!;
+): Promise<IntakeDraft> {
+  const d = await createIntakeDraft(vertical);
+  const filled = await fillIntakeDraft(d.id, job_spec);
+  return filled!;
 }
 
-export function getLatestFilled(vertical: string): IntakeDraft | null {
-  const all = [...tables().drafts.values()]
-    .filter((d) => d.vertical === vertical && d.status === "filled" && d.job_spec)
-    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
-  return all[0] ?? null;
+export async function getLatestFilled(
+  vertical: string
+): Promise<IntakeDraft | null> {
+  if (!hasDatabaseUrl()) {
+    const all = [...mem().drafts.values()]
+      .filter(
+        (d) =>
+          d.vertical === vertical && d.status === "filled" && d.job_spec
+      )
+      .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+    return all[0] ?? null;
+  }
+  const pool = getPool();
+  const { rows } = await pool.query(
+    `SELECT * FROM intake_drafts
+     WHERE vertical = $1 AND status = 'filled' AND job_spec IS NOT NULL
+     ORDER BY updated_at DESC
+     LIMIT 1`,
+    [vertical]
+  );
+  return rows[0] ? mapRow(rows[0]) : null;
 }

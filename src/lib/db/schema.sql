@@ -71,6 +71,18 @@ CREATE TABLE IF NOT EXISTS tool_calls (
 CREATE INDEX IF NOT EXISTS tool_calls_session_id_idx ON tool_calls(session_id);
 CREATE INDEX IF NOT EXISTS tool_calls_job_id_idx ON tool_calls(job_id);
 
+CREATE TABLE IF NOT EXISTS intake_drafts (
+  id          uuid PRIMARY KEY,
+  vertical    text NOT NULL,
+  job_spec    jsonb NULL,
+  status      text NOT NULL DEFAULT 'pending',
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  updated_at  timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS intake_drafts_vertical_status_idx
+  ON intake_drafts(vertical, status, updated_at DESC);
+
 -- Idempotent migrations for existing DBs
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS frozen_job_spec jsonb NULL;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS negotiator_conversation_id text NULL;
