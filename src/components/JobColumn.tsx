@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { JobSpec, UiPhase, VerticalConfig } from "@/lib/ui/types";
 import { demoJobSpec, jobSpecFields, uiCopy } from "@/lib/ui/types";
 
@@ -24,42 +24,147 @@ export function JobColumn({
   busy,
 }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<string | null>(null);
+  const [intakeId, setIntakeId] = useState<string | null>(null);
   const locked = phase !== "draft";
   const copy = uiCopy(vertical);
   const fields = jobSpecFields(vertical);
 
+  const stopVoicePoll = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => () => stopVoicePoll(), [stopVoicePoll]);
+
   const useDemo = useCallback(() => {
     onJobSpecChange(demoJobSpec(vertical));
     setUploadMsg(null);
-  }, [onJobSpecChange, vertical]);
+    setVoiceStatus(null);
+    stopVoicePoll();
+  }, [onJobSpecChange, vertical, stopVoicePoll]);
+
+  const startVoiceIntake = useCallback(async () => {
+    if (locked) return;
+    setVoiceStatus("Starting intake session…");
+    stopVoicePoll();
+    try {
+      const res = await fetch("/api/intake/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ vertical: vertical.id }),
+      });
+      if (!res.ok) throw new Error("intake start failed");
+      const data = (await res.json()) as {
+        intake_id: string;
+        talk_url?: string | null;
+        agent_id?: string | null;
+      };
+      setIntakeId(data.intake_id);
+
+      const talk =
+        data.talk_url ||
+        (data.agent_id
+          ? `https://elevenlabs.io/app/talk-to?agent_id=${encodeURIComponent(data.agent_id)}`
+          : voiceAgentId
+            ? `https://elevenlabs.io/app/talk-to?agent_id=${encodeURIComponent(voiceAgentId)}`
+            : null);
+
+      if (talk) {
+        window.open(talk, "_blank", "noopener,noreferrer");
+        setVoiceStatus(
+          "Voice tab opened. Tell the agent your AC details, then ask it to submit the job. Form fills automatically…"
+        );
+      } else {
+        setVoiceStatus(
+          "No intake agent id — use demo job, or set NEXT_PUBLIC_ELEVENLABS_INTAKE_AGENT_ID"
+        );
+      }
+
+      // Poll for submit_spec webhook result
+      let ticks = 0;
+      pollRef.current = setInterval(async () => {
+        ticks += 1;
+        if (ticks > 120) {
+          stopVoicePoll();
+          setVoiceStatus(
+            "Timed out waiting for agent. Use demo job, or ensure submit_spec webhook hits this app."
+          );
+          return;
+        }
+        try {
+          const s = await fetch(
+            `/api/intake/status?intake_id=${encodeURIComponent(data.intake_id)}&vertical=${encodeURIComponent(vertical.id)}`,
+            { cache: "no-store" }
+          );
+          if (!s.ok) return;
+          const body = (await s.json()) as {
+            draft?: { status?: string; job_spec?: JobSpec };
+          };
+          if (body.draft?.status === "filled" && body.draft.job_spec) {
+            onJobSpecChange(body.draft.job_spec);
+            setVoiceStatus("Job filled from voice intake ✓");
+            stopVoicePoll();
+          }
+        } catch {
+          /* keep polling */
+        }
+      }, 2000);
+    } catch (e) {
+      setVoiceStatus(
+        e instanceof Error ? e.message : "Could not start voice intake"
+      );
+    }
+  }, [
+    locked,
+    vertical.id,
+    voiceAgentId,
+    onJobSpecChange,
+    stopVoicePoll,
+  ]);
 
   const handlePdf = useCallback(
     async (file: File) => {
       setUploadMsg("Reading PDF…");
       try {
-        // Prefer job-scoped extract if a draft job already exists; else intake
         const fd = new FormData();
         fd.append("file", file);
         fd.append("vertical", vertical.id);
 
-        let res = await fetch("/api/intake/pdf", { method: "POST", body: fd });
-        if (!res.ok) {
-          // try alternate path used by backend agents
-          res = await fetch("/api/jobs/extract-pdf", {
-            method: "POST",
-            body: fd,
-          });
-        }
-        if (res.ok) {
-          const data = (await res.json()) as { job_spec?: JobSpec };
-          if (data.job_spec) {
-            onJobSpecChange(data.job_spec);
-            setUploadMsg("Job filled from PDF");
-            return;
+        // Create a draft job then extract if needed
+        const createRes = await fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ vertical: vertical.id, job_spec: {} }),
+        });
+        if (createRes.ok) {
+          const created = (await createRes.json()) as {
+            job?: { id: string };
+          };
+          const jobId = created.job?.id;
+          if (jobId) {
+            const res = await fetch(`/api/jobs/${jobId}/extract-pdf`, {
+              method: "POST",
+              body: fd,
+            });
+            if (res.ok) {
+              const data = (await res.json()) as {
+                job?: { job_spec?: JobSpec };
+              };
+              if (data.job?.job_spec) {
+                onJobSpecChange(data.job.job_spec as JobSpec);
+                setUploadMsg("Job filled from PDF");
+                return;
+              }
+            }
           }
         }
+
         onJobSpecChange(demoJobSpec(vertical));
         setUploadMsg("Extract offline — loaded demo job (edit as needed)");
       } catch {
@@ -102,88 +207,83 @@ export function JobColumn({
       </header>
 
       <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
-        {voiceAgentId ? (
-          <div className="space-y-2">
-            <p className="text-sm font-medium text-slate-800">
-              {copy.voice_intake_label}
-            </p>
-            <a
-              href={`https://elevenlabs.io/app/talk-to?agent_id=${encodeURIComponent(voiceAgentId)}`}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800"
-            >
-              <MicIcon />
-              Start voice intake
-            </a>
-            <p className="text-xs text-slate-500">
-              Or use the demo job below if the agent is still connecting.
-            </p>
-          </div>
-        ) : (
-          <div className="flex items-start gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-400">
-              <MicIcon />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-700">
-                Voice intake (connect agent)
-              </p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                Set{" "}
-                <code className="rounded bg-slate-100 px-1">
-                  NEXT_PUBLIC_ELEVENLABS_INTAKE_AGENT_ID
-                </code>{" "}
-                or use a demo job.
-              </p>
-            </div>
-          </div>
-        )}
-        {!locked && (
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-slate-800">
+            {copy.voice_intake_label}
+          </p>
           <button
             type="button"
-            onClick={useDemo}
-            className="mt-3 w-full rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800 hover:bg-emerald-100"
+            disabled={locked}
+            onClick={() => void startVoiceIntake()}
+            className="inline-flex items-center gap-2 rounded-lg bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-40"
           >
-            {copy.demo_job_button}
+            <MicIcon />
+            Start voice intake
           </button>
+          {voiceStatus && (
+            <p className="text-xs text-emerald-800 bg-emerald-50 rounded-md px-2 py-1.5">
+              {voiceStatus}
+              {intakeId ? (
+                <span className="block text-[10px] text-slate-500 mt-0.5">
+                  intake_id: {intakeId.slice(0, 8)}…
+                </span>
+              ) : null}
+            </p>
+          )}
+          <p className="text-xs text-slate-500">
+            Speak your job to the agent, then say{" "}
+            <strong>“submit the job”</strong> / confirm so it calls{" "}
+            <code className="text-[10px]">submit_spec</code>. This form polls
+            and fills automatically.
+          </p>
+        </div>
+      </div>
+
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          if (!locked) setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={onDrop}
+        className={`rounded-xl border border-dashed p-4 text-center ${
+          dragOver
+            ? "border-emerald-400 bg-emerald-50"
+            : "border-slate-200 bg-white"
+        }`}
+      >
+        <p className="text-sm text-slate-600">{copy.pdf_upload_label}</p>
+        <button
+          type="button"
+          disabled={locked}
+          onClick={() => fileRef.current?.click()}
+          className="mt-2 text-sm font-medium text-emerald-700 hover:underline disabled:opacity-40"
+        >
+          Choose PDF
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="application/pdf"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handlePdf(f);
+          }}
+        />
+        {uploadMsg && (
+          <p className="mt-2 text-xs text-slate-500">{uploadMsg}</p>
         )}
       </div>
 
-      {!locked && (
-        <div
-          onDragOver={(e) => {
-            e.preventDefault();
-            setDragOver(true);
-          }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={onDrop}
-          onClick={() => fileRef.current?.click()}
-          className={`cursor-pointer rounded-xl border-2 border-dashed p-4 text-center transition-colors ${
-            dragOver
-              ? "border-emerald-400 bg-emerald-50"
-              : "border-slate-200 bg-white hover:border-slate-300"
-          }`}
-        >
-          <p className="text-sm font-medium text-slate-700">
-            {copy.pdf_upload_label}
-          </p>
-          <p className="mt-1 text-xs text-slate-400">PDF only · click or drag</p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) void handlePdf(f);
-            }}
-          />
-          {uploadMsg && (
-            <p className="mt-2 text-xs text-emerald-700">{uploadMsg}</p>
-          )}
-        </div>
-      )}
+      <button
+        type="button"
+        disabled={locked}
+        onClick={useDemo}
+        className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+      >
+        {copy.demo_job_button}
+      </button>
 
       <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
         {!hasSpec ? (
@@ -191,41 +291,18 @@ export function JobColumn({
             Job details appear here after voice intake, PDF, or demo job.
           </p>
         ) : (
-          <dl className="space-y-2.5">
+          <dl className="space-y-2 text-sm">
             {fields.map((f) => {
-              const raw = jobSpec?.[f.key];
-              const val =
-                raw === null || raw === undefined ? "" : String(raw);
+              const val = jobSpec?.[f.key];
+              if (val === undefined || val === null || val === "") return null;
               return (
-                <div key={f.key} className="grid grid-cols-[7rem_1fr] gap-2">
-                  <dt className="pt-0.5 text-xs font-medium text-slate-500">
-                    {f.label}
-                  </dt>
-                  <dd>
-                    {locked ? (
-                      <span className="text-sm text-slate-900">
-                        {val || "—"}
-                      </span>
-                    ) : (
-                      <input
-                        className="w-full rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-sm text-slate-900 outline-none focus:border-emerald-400 focus:ring-1 focus:ring-emerald-400"
-                        value={val}
-                        onChange={(e) => {
-                          const next = e.target.value;
-                          const asNum =
-                            f.type === "number" && next !== ""
-                              ? Number(next)
-                              : next;
-                          onJobSpecChange({
-                            ...jobSpec!,
-                            [f.key]:
-                              f.type === "number" && next !== "" && !Number.isNaN(asNum as number)
-                                ? (asNum as number)
-                                : next,
-                          });
-                        }}
-                      />
-                    )}
+                <div
+                  key={f.key}
+                  className="flex justify-between gap-3 border-b border-slate-50 pb-1.5"
+                >
+                  <dt className="text-slate-500">{f.label}</dt>
+                  <dd className="text-right font-medium text-slate-900">
+                    {String(val)}
                   </dd>
                 </div>
               );
@@ -238,12 +315,12 @@ export function JobColumn({
         type="button"
         disabled={!hasSpec || locked || busy}
         onClick={onConfirm}
-        className="w-full rounded-xl bg-emerald-600 px-4 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-400"
+        className="w-full rounded-xl bg-emerald-600 px-4 py-3 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-40"
       >
         {locked
-          ? phase === "complete"
-            ? "Quotes complete"
-            : "Calling vendors…"
+          ? phase === "calling"
+            ? "Calling vendors…"
+            : "Confirmed"
           : copy.confirm_button}
       </button>
     </section>
@@ -253,19 +330,18 @@ export function JobColumn({
 function MicIcon() {
   return (
     <svg
-      width="18"
-      height="18"
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
       strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
       aria-hidden
     >
-      <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" />
+      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
       <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-      <line x1="12" x2="12" y1="19" y2="22" />
+      <line x1="12" y1="19" x2="12" y2="23" />
+      <line x1="8" y1="23" x2="16" y2="23" />
     </svg>
   );
 }
