@@ -20,14 +20,17 @@ async function putVercelBlob(
   const token = process.env.BLOB_READ_WRITE_TOKEN?.trim();
   try {
     const { put } = await import("@vercel/blob");
-    const blob = await put(`recordings/${sessionId}.mp3`, buf, {
-      access: "public",
+    await put(`recordings/${sessionId}.mp3`, buf, {
+      // The configured store is private. Playback is served through our
+      // recording route, which keeps the Blob token on the server.
+      access: "private",
       contentType: "audio/mpeg",
+      addRandomSuffix: false,
       ...(mode === "read-write-token"
         ? { token }
         : { storeId: process.env.BLOB_STORE_ID!.trim() }),
     });
-    return blob.url;
+    return `/api/recordings/${sessionId}`;
   } catch (e) {
     console.warn("[recordings] @vercel/blob put failed", e);
     return null;
