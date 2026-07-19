@@ -1,12 +1,11 @@
 "use client";
 
-import { ProductWorkspace } from "./ProductWorkspace";
+import { LandingPage } from "./LandingPage";
 
 /**
- * Judge-facing product shell — full live product at `/`.
- * Sample golden replay: `/live` (or `/live?replay=true`).
- * Alias: `/livee` → same ProductWorkspace.
+ * `/` — marketing landing (LEVERAGE + Book Smart Deals).
+ * Portal: `/livee` · Sample: `/live`
  */
 export function AppHome() {
-  return <ProductWorkspace />;
+  return <LandingPage />;
 }

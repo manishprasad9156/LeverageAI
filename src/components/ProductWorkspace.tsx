@@ -27,7 +27,7 @@ import { LearningPanel } from "./LearningPanel";
 const MODES = [
   {
     id: "hvac",
-    label: "Home AC",
+    label: "HVAC",
     hint: "Cooling & heating quotes",
     placeholder:
       "Describe the job — e.g. 3-ton AC not cooling in 28202, need replacement this week",
@@ -250,30 +250,26 @@ function WaChat({
   return (
     <div className="wa-shell min-h-0 flex-1">
       <div className="wa-header">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/20 text-sm font-semibold">
-          {initial}
-        </div>
+        <div className="wa-avatar">{initial}</div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[14px] font-medium leading-tight">
-            {oneWord}
-          </div>
-          <div className="truncate text-[11px] text-white/80">{nature4}</div>
+          <div className="wa-title truncate">{oneWord}</div>
+          <div className="wa-nature truncate">{nature4}</div>
         </div>
         {live && (
-          <span className="flex items-center gap-1.5 text-[11px] text-white/90">
-            <span className="pulse-dot bg-emerald-300" />
+          <span className="flex items-center gap-1.5 text-[11px] text-[var(--ink-muted)]">
+            <span className="pulse-dot" />
             Live
           </span>
         )}
         {done && !live && (
-          <span className="text-[11px] text-white/75">
+          <span className="text-[11px] text-[var(--ink-muted)]">
             {status === "declined" ? "No quote" : "Done"}
           </span>
         )}
       </div>
       <div className="wa-thread">
         {lines.length === 0 && (
-          <p className="m-auto text-center text-[12px] text-black/40">
+          <p className="m-auto text-center text-[12px] text-[var(--ink-muted)]">
             {live ? "Connecting…" : "Waiting to start"}
           </p>
         )}
@@ -286,7 +282,7 @@ function WaChat({
               className={`flex wa-pop ${out ? "justify-end" : "justify-start"}`}
             >
               <div className={out ? "wa-bubble-out" : "wa-bubble-in"}>
-                <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-black/35">
+                <div className="mb-0.5 text-[10px] font-medium uppercase tracking-wide text-black/30">
                   {out ? "You" : oneWord}
                 </div>
                 {line.text}
@@ -862,26 +858,16 @@ export function ProductWorkspace() {
   };
 
   return (
-    <div className="relative min-h-screen text-[var(--ink)]">
-      <CloudBackdrop />
+    <div className="portal-outer text-[var(--ink)]">
+      <div className="portal-frame">
+        <CloudBackdrop />
 
-      <div className="relative z-10">
+        <div className="portal-content">
         <header className="glass-header sticky top-0 z-30">
           <div className="mx-auto flex max-w-[var(--max)] items-center justify-between px-4 py-3 sm:px-6">
-            <div className="flex items-center gap-2.5">
-              <div
-                className="h-7 w-7 rounded-full"
-                style={{
-                  background:
-                    "radial-gradient(circle at 30% 30%, #c4b5fd, #7c3aed 55%, #0c0b0a)",
-                }}
-                aria-hidden
-              />
-              <span className="text-[15px] font-semibold tracking-tight">
-                Leverage
-                <span className="font-normal text-[var(--ink-muted)]">.AI</span>
-              </span>
-            </div>
+            <a href="/" className="logo-mark no-underline" aria-label="LEVERAGE home">
+              <span className="logo-leverage">LEVERAGE</span>
+            </a>
             <nav className="flex items-center gap-4">
               <a
                 href="/live"
@@ -903,18 +889,18 @@ export function ProductWorkspace() {
             {!showResults && (
               <>
                 <h1 className="text-[28px] font-semibold tracking-tight sm:text-[34px]">
-                  Best deal. No phone tag.
+                  Better deals. Less phone tag.
                 </h1>
                 <p className="mt-3 max-w-md text-[15px] leading-relaxed text-[var(--ink-secondary)]">
-                  Describe the job once. We match shops, negotiate with three in
-                  parallel, and hand you one clear recommendation.
+                  Describe the job once. Three shops negotiate in parallel —
+                  one clear recommendation.
                 </p>
               </>
             )}
 
             <form
               onSubmit={(e) => void onSend(e)}
-              className="composer-shell glass-panel-strong mt-6 w-full p-3 text-left"
+              className="composer-shell glass-liquid-strong mt-6 w-full p-3 text-left"
             >
               <div className="relative mb-2" ref={modeRef}>
                 <button
@@ -1125,7 +1111,7 @@ export function ProductWorkspace() {
           {showResults && (
             <section
               ref={dealRef}
-              className={`stage-enter glass-panel p-5 sm:p-6 ${
+              className={`stage-enter glass-liquid p-5 sm:p-6 ${
                 dealReady ? "" : "opacity-95"
               }`}
             >
@@ -1239,6 +1225,7 @@ export function ProductWorkspace() {
             </section>
           )}
         </main>
+        </div>
       </div>
     </div>
   );
