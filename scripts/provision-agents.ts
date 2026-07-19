@@ -162,6 +162,36 @@ function loadToolDefinitions(): ToolDefinition[] {
   return parsed.tools;
 }
 
+/**
+ * ElevenLabs /v1/convai/tools schema quirks (2026):
+ * - rejects `additionalProperties` anywhere (true or false)
+ * - every leaf property must set description (or dynamic_variable / etc.)
+ */
+function normalizeToolBodySchema(value: unknown, propName = "value"): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item, i) => normalizeToolBodySchema(item, `${propName}_${i}`));
+  }
+  if (!value || typeof value !== "object") return value;
+  const input = value as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (k === "additionalProperties") continue;
+    out[k] = normalizeToolBodySchema(v, k);
+  }
+  // Leaf property objects with a type need a description for EL validation
+  if (
+    typeof out.type === "string" &&
+    !out.description &&
+    !out.dynamic_variable &&
+    !out.is_system_provided &&
+    !out.constant_value &&
+    out.is_omitted === undefined
+  ) {
+    out.description = `${propName} value`;
+  }
+  return out;
+}
+
 function webhookToolConfig(
   definition: ToolDefinition,
   baseUrl: string,
@@ -176,7 +206,7 @@ function webhookToolConfig(
       url: `${baseUrl.replace(/\/$/, "")}/api/tools/${definition.name}`,
       method: "POST",
       content_type: "application/json",
-      request_body_schema: definition.parameters,
+      request_body_schema: normalizeToolBodySchema(definition.parameters, "body"),
       request_headers: secret ? { "x-tools-secret": secret } : {},
     },
     dynamic_variables: { dynamic_variable_placeholders: {} },
@@ -276,10 +306,11 @@ async function provisionPostCallWebhook(
     console.log("created post-call webhook");
   }
 
+  // ElevenLabs only enables send_audio when "audio" is in events (not send_audio alone).
   await api(key, "PATCH", "/convai/settings", {
     webhooks: {
       post_call_webhook_id: webhookId,
-      events: ["transcript"],
+      events: ["transcript", "audio"],
       transcript_format: "json",
       send_audio: true,
     },
@@ -464,7 +495,10 @@ async function verifyPostCallWebhook(key: string, baseUrl: string): Promise<void
   if (!settings.webhooks?.events?.includes("transcript")) {
     throw new Error("Post-call transcript delivery is not enabled");
   }
-  if (!settings.webhooks?.send_audio) {
+  if (
+    !settings.webhooks?.send_audio &&
+    !settings.webhooks?.events?.includes("audio")
+  ) {
     throw new Error("Post-call audio delivery is not enabled");
   }
   console.log("verified post-call transcript and audio webhook");
