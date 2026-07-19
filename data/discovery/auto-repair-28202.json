@@ -1,0 +1,56 @@
+{
+  "vertical": "auto-repair",
+  "zip": "28202",
+  "query": "auto repair shop near 28202",
+  "retrieved": "2026-07",
+  "places": [
+    {
+      "place_id": "auto_clt_1",
+      "displayName": "Uptown Auto Care",
+      "rating": 4.7,
+      "userRatingCount": 540,
+      "nationalPhoneNumber": "+1 704-555-3101",
+      "formattedAddress": "312 N College St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/uptown-auto",
+      "googleMapsUri": "https://maps.google.com/?q=Uptown+Auto+Care+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": true }
+    },
+    {
+      "place_id": "auto_clt_2",
+      "displayName": "Tryon Street Garage",
+      "rating": 4.4,
+      "userRatingCount": 210,
+      "nationalPhoneNumber": "+1 704-555-3102",
+      "formattedAddress": "220 S Tryon St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/tryon-garage",
+      "googleMapsUri": "https://maps.google.com/?q=Tryon+Street+Garage",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": true }
+    },
+    {
+      "place_id": "auto_clt_3",
+      "displayName": "Budget Wheels Repair",
+      "rating": 3.9,
+      "userRatingCount": 88,
+      "nationalPhoneNumber": "+1 704-555-3103",
+      "formattedAddress": "90 E Trade St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/budget-wheels",
+      "googleMapsUri": "https://maps.google.com/?q=Budget+Wheels+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": true }
+    },
+    {
+      "place_id": "auto_clt_4",
+      "displayName": "Precision Import Specialists",
+      "rating": 4.9,
+      "userRatingCount": 160,
+      "nationalPhoneNumber": "+1 704-555-3104",
+      "formattedAddress": "15 N Church St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/precision-import",
+      "googleMapsUri": "https://maps.google.com/?q=Precision+Import+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": false }
+    }
+  ]
+}

@@ -18,20 +18,17 @@ const schema = z.object({
 });
 
 function loadSnapshot(vertical: string, zip: string): PlaceDetails[] {
+  const fallbackName =
+    vertical === "movers"
+      ? "movers-29730.json"
+      : vertical === "medical-imaging"
+        ? "medical-imaging-28202.json"
+        : vertical === "auto-repair"
+          ? "auto-repair-28202.json"
+          : "hvac-28202.json";
   const candidates = [
     join(process.cwd(), "data", "discovery", `${vertical}-${zip}.json`),
-    join(
-      process.cwd(),
-      "data",
-      "discovery",
-      vertical === "movers"
-        ? "movers-29730.json"
-        : vertical === "medical-imaging"
-          ? "hvac-28202.json"
-          : vertical === "auto-repair"
-            ? "hvac-28202.json"
-            : "hvac-28202.json"
-    ),
+    join(process.cwd(), "data", "discovery", fallbackName),
   ];
   for (const p of candidates) {
     if (!existsSync(p)) continue;
@@ -163,7 +160,7 @@ export async function POST(req: NextRequest) {
         score_breakdown: r.score.components,
       })),
       caption:
-        "AI recommends calling these 3. In production we dial via ElevenLabs native Twilio; demo uses negotiation-style counter-agents.",
+        "Top local providers by rating and reviews. Your negotiator works these in parallel for you.",
     });
   } catch (e) {
     console.error("[POST /api/discovery]", e);

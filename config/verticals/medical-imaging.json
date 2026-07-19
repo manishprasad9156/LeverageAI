@@ -136,36 +136,39 @@
   "vendors": [
     {
       "id": "tough",
-      "displayName": "Summit Air",
-      "name": "Summit Air",
+      "displayName": "Queen City Imaging",
+      "name": "Queen City Imaging",
       "role": "tough",
       "persona": "tough",
-      "role_label": "Tough on price",
-      "public_blurb": "Imaging center \u2014 cash-pay MRI quotes by phone.",
-      "pricing_strategy_secret": "Imaging counter persona; use dynamic job_spec only.",
-      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+      "role_label": "The careful one",
+      "nature": "The careful one — clear cash price, won't undercut quality or rush reads.",
+      "public_blurb": "Imaging center with transparent cash-pay MRI pricing.",
+      "pricing_strategy_secret": "Opens near high of cash band; concedes when a real competing cash quote is cited; floor near mid.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI."
     },
     {
       "id": "stonewaller",
-      "displayName": "ComfortPro",
-      "name": "ComfortPro",
+      "displayName": "Carolina MRI Partners",
+      "name": "Carolina MRI Partners",
       "role": "stonewaller",
       "persona": "stonewaller",
-      "role_label": "No phone quotes",
-      "public_blurb": "Imaging center \u2014 cash-pay MRI quotes by phone.",
-      "pricing_strategy_secret": "Imaging counter persona; use dynamic job_spec only.",
-      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+      "role_label": "The cautious one",
+      "nature": "The cautious one — wants referral paperwork before locking a cash number.",
+      "public_blurb": "Regional imaging — prefers order on file before firm cash quotes.",
+      "pricing_strategy_secret": "Refuses firm phone cash price without referral; callback only.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI."
     },
     {
       "id": "upseller",
-      "displayName": "ValueHVAC",
-      "name": "ValueHVAC",
+      "displayName": "FastScan Diagnostics",
+      "name": "FastScan Diagnostics",
       "role": "upseller",
       "persona": "upseller",
-      "role_label": "Lowball + fees",
-      "public_blurb": "Imaging center \u2014 cash-pay MRI quotes by phone.",
-      "pricing_strategy_secret": "Imaging counter persona; use dynamic job_spec only.",
-      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
+      "role_label": "The bargain front",
+      "nature": "The bargain front — low exam fee; contrast and facility add-ons stack later.",
+      "public_blurb": "Fast cash MRI slots with competitive headline rates.",
+      "pricing_strategy_secret": "Lowballs facility fee then layers contrast, CD, and read fees; may red-flag vs mid.",
+      "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI."
     }
   ],
   "benchmarks": {

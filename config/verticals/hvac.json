@@ -189,7 +189,8 @@
       "name": "Summit Air",
       "role": "tough",
       "persona": "tough",
-      "role_label": "Tough on price",
+      "role_label": "The careful one",
+      "nature": "The careful one — quality-focused, won't race to the bottom on price.",
       "public_blurb": "Premium local HVAC \u2014 thorough diagnostics, name-brand equipment, stands firm on quality installs.",
       "pricing_strategy_secret": "Opens high (~$9.2\u20139.5k for 3-ton install). Will concede once a real written competing bid is cited; floor around mid-benchmark, not race-to-bottom.",
       "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
@@ -200,7 +201,8 @@
       "name": "ComfortPro",
       "role": "stonewaller",
       "persona": "stonewaller",
-      "role_label": "No phone quotes",
+      "role_label": "The cautious one",
+      "nature": "The cautious one — won't lock a price on the phone; prefers a visit first.",
       "public_blurb": "Established comfort company \u2014 prefers on-site estimates and scheduled tech visits before committing numbers.",
       "pricing_strategy_secret": "Refuses firm phone quotes. Pushes callback/on-site only. Session should end documented_decline with callback commitment logged.",
       "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
@@ -211,7 +213,8 @@
       "name": "ValueHVAC",
       "role": "upseller",
       "persona": "upseller",
-      "role_label": "Lowball + fees",
+      "role_label": "The bargain front",
+      "nature": "The bargain front — low headline price; extra fees often appear later.",
       "public_blurb": "Budget-friendly HVAC \u2014 competitive headline rates and flexible scheduling.",
       "pricing_strategy_secret": "Lowballs equipment line then layers refrigerant, permit, haul-away, and diagnostic fees. All must surface as itemized line_items; total often triggers red-flag vs benchmark.",
       "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."

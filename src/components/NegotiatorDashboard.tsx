@@ -296,15 +296,20 @@ export function NegotiatorDashboard() {
       setBusy(true);
       setBanner("Starting negotiations…");
       try {
-        // Prefer server simulate (always works with Neon) + optional live bridges
+        // Prefer live agent-vs-agent; server falls back to simulate if not configured.
+        // Force simulate with ?simulate=1; force live with ?live=1
+        const forceSim = searchParams.get("simulate") === "1";
+        const forceLive = searchParams.get("live") === "1";
         const startRes = await fetch("/api/sessions/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             job_id: jobId,
-            // Use live bridges only if explicitly ?live=1; default simulate for reliability
-            live: searchParams.get("live") === "1",
-            simulate: searchParams.get("live") !== "1",
+            ...(forceSim
+              ? { simulate: true, live: false }
+              : forceLive
+                ? { live: true }
+                : {}),
           }),
         });
         if (!startRes.ok) {

@@ -16,9 +16,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LeverageAI — The Negotiator",
+  title: "Leverage.AI",
   description:
-    "AI voice agents that phone-shop and haggle vendor quotes with honest, evidence-backed leverage.",
+    "Tell us what you need. We negotiate with several providers at once and recommend the best deal.",
 };
 
 export default function RootLayout({
@@ -32,7 +32,7 @@ export default function RootLayout({
       className={`${inter.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body
-        className="flex min-h-full flex-col text-[var(--color-ink)]"
+        className="flex min-h-full flex-col text-[var(--ink)]"
         style={
           {
             fontFamily: "var(--font-inter-loaded), Inter, system-ui, sans-serif",

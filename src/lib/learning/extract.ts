@@ -84,7 +84,13 @@ export async function upsertLearning(
   } else {
     await pool.query(
       `INSERT INTO negotiation_learnings (id, vertical, tactic, context, outcome_delta, sample_count)
-       VALUES ($1, $2, $3, '{}'::jsonb, $4, 1)`,
+       VALUES ($1, $2, $3, '{}', $4, 1)
+       ON CONFLICT (vertical, tactic) DO UPDATE
+       SET outcome_delta = (
+             negotiation_learnings.outcome_delta * negotiation_learnings.sample_count + EXCLUDED.outcome_delta
+           ) / (negotiation_learnings.sample_count + 1),
+           sample_count = negotiation_learnings.sample_count + 1,
+           updated_at = now()`,
       [randomUUID(), vertical, tactic, delta]
     );
   }
@@ -146,29 +152,51 @@ export async function getPlaybook(vertical: string): Promise<{
     }));
   }
 
-  // Seed defaults if empty
+  // Seed defaults if empty — all arms so UCB has a full prior
   if (rows.length === 0) {
+    const now = new Date().toISOString();
     rows = [
       {
         vertical,
         tactic: "cite_competing_bid",
         outcome_delta: -14,
         sample_count: 6,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       },
       {
         vertical,
         tactic: "request_itemization",
         outcome_delta: -8,
         sample_count: 9,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       },
       {
         vertical,
         tactic: "cite_benchmark",
         outcome_delta: -5,
         sample_count: 4,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
+      },
+      {
+        vertical,
+        tactic: "ask_for_manager_price",
+        outcome_delta: -3,
+        sample_count: 2,
+        updated_at: now,
+      },
+      {
+        vertical,
+        tactic: "bundle_scope_reduction",
+        outcome_delta: -2,
+        sample_count: 2,
+        updated_at: now,
+      },
+      {
+        vertical,
+        tactic: "silence_after_anchor",
+        outcome_delta: -1,
+        sample_count: 2,
+        updated_at: now,
       },
     ];
   }

@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Local intro video assets (never push)
+demo-video/
+public/LeverageAI_Intro.mp4
+*.mp4

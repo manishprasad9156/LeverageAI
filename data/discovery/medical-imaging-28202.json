@@ -1,0 +1,56 @@
+{
+  "vertical": "medical-imaging",
+  "zip": "28202",
+  "query": "MRI imaging center cash price near 28202",
+  "retrieved": "2026-07",
+  "places": [
+    {
+      "place_id": "mri_charlotte_1",
+      "displayName": "Queen City Imaging",
+      "rating": 4.6,
+      "userRatingCount": 312,
+      "nationalPhoneNumber": "+1 704-555-2101",
+      "formattedAddress": "201 S Tryon St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/queen-city-imaging",
+      "googleMapsUri": "https://maps.google.com/?q=Queen+City+Imaging+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": true }
+    },
+    {
+      "place_id": "mri_charlotte_2",
+      "displayName": "Carolina MRI Partners",
+      "rating": 4.3,
+      "userRatingCount": 188,
+      "nationalPhoneNumber": "+1 704-555-2102",
+      "formattedAddress": "401 N Church St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/carolina-mri",
+      "googleMapsUri": "https://maps.google.com/?q=Carolina+MRI+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": true }
+    },
+    {
+      "place_id": "mri_charlotte_3",
+      "displayName": "FastScan Diagnostics",
+      "rating": 4.1,
+      "userRatingCount": 95,
+      "nationalPhoneNumber": "+1 704-555-2103",
+      "formattedAddress": "500 E Morehead St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/fastscan",
+      "googleMapsUri": "https://maps.google.com/?q=FastScan+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": false }
+    },
+    {
+      "place_id": "mri_charlotte_4",
+      "displayName": "Metro Open MRI",
+      "rating": 4.8,
+      "userRatingCount": 420,
+      "nationalPhoneNumber": "+1 704-555-2104",
+      "formattedAddress": "100 W Trade St, Charlotte, NC 28202",
+      "websiteUri": "https://example.com/metro-open-mri",
+      "googleMapsUri": "https://maps.google.com/?q=Metro+Open+MRI+Charlotte",
+      "businessStatus": "OPERATIONAL",
+      "regularOpeningHours": { "openNow": true }
+    }
+  ]
+}

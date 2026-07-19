@@ -13,6 +13,8 @@ export type VendorConfig = {
   persona?: string;
   role?: string;
   role_label?: string;
+  /** Non-technical one-liner for UI */
+  nature?: string;
   public_blurb?: string;
 };
 

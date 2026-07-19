@@ -113,11 +113,17 @@ export async function closeSession(raw: unknown): Promise<CloseSessionResult> {
     };
   }
 
-  // Best-effort playbook learning (does not block close)
+  // Best-effort playbook learning + XState session close (does not block)
   void (async () => {
     try {
       const job = await store.getJob(session.job_id);
       if (!job) return;
+      try {
+        const { onSessionClosed } = await import("@/lib/orchestrator/runtime");
+        onSessionClosed(session.job_id);
+      } catch {
+        /* ignore */
+      }
       const transcripts = await store.listTranscriptsBySession(session_id);
       const quotes = await store.listQuotesByJob(session.job_id);
       const sessionQuotes = quotes

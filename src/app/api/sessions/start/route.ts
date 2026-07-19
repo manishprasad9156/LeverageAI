@@ -14,6 +14,14 @@ import { runBridgesParallel } from "@/lib/elevenlabs/bridge";
 import type { BridgePairIntent } from "@/lib/elevenlabs/types";
 import { fetchAndStoreRecording } from "@/lib/elevenlabs/recordings";
 import { simulateJobNegotiations } from "@/lib/sessions/simulateNegotiation";
+import {
+  onSessionsStarted,
+  onReportReady,
+} from "@/lib/orchestrator/runtime";
+import {
+  selectTacticsUcb,
+  formatPlaybookForAgent,
+} from "@/lib/learning/bandit";
 
 export const runtime = "nodejs";
 /**
@@ -88,16 +96,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Explicit live bridges only when live===true AND agents configured.
-    // Otherwise default to server simulate (reliable for live pitch demos).
-    const liveRequested = parsed.data.live === true;
+    // Judges path: prefer real ElevenLabs agent-vs-agent when configured.
+    // simulate=true forces server script; live=false also forces simulate.
+    // Default (no flags): live if available, else simulate.
     const liveAvailable = isLiveModeEnabled();
-    let wantLive = liveRequested && liveAvailable;
-    let wantSimulate =
-      !wantLive &&
-      (parsed.data.simulate === true ||
-        parsed.data.live !== true ||
-        !liveAvailable);
+    const forceSimulate = parsed.data.simulate === true;
+    const liveRequested =
+      !forceSimulate &&
+      (parsed.data.live === true || parsed.data.live === undefined);
+    let wantLive = liveRequested && liveAvailable && !forceSimulate;
+    let wantSimulate = !wantLive;
 
     // Serverless: both modes need shared Postgres so polling sees writes.
     if ((wantLive || wantSimulate) && !hasDatabaseUrl()) {
@@ -210,6 +218,20 @@ export async function POST(req: NextRequest) {
     }
 
     await store.updateJob(job.id, { status: "running" });
+    try {
+      onSessionsStarted(job.id, sessions.length);
+    } catch (e) {
+      console.warn("[sessions/start] xstate", e);
+    }
+
+    // UCB1 playbook → inject into live agent dynamic vars
+    let playbookHint = "";
+    try {
+      const selected = await selectTacticsUcb(job.vertical, 3);
+      playbookHint = formatPlaybookForAgent(selected.sentences);
+    } catch (e) {
+      console.warn("[sessions/start] bandit playbook", e);
+    }
 
     if (wantLive) {
       const intents: BridgePairIntent[] = sessions.map((s) => {
@@ -221,6 +243,7 @@ export async function POST(req: NextRequest) {
           jobId: job.id,
           sessionId: s.id,
           jobSpecJson,
+          playbookHint,
         };
       });
 
@@ -230,7 +253,6 @@ export async function POST(req: NextRequest) {
           `[sessions/start] parallel multi-agent bridges job=${jobId} n=${intents.length}`
         );
         try {
-          // Simultaneous negotiator↔vendor pairs (not sequential)
           const results = await runBridgesParallel(intents);
           console.log(
             `[sessions/start] bridges done (parallel)`,
@@ -283,6 +305,11 @@ export async function POST(req: NextRequest) {
           );
           if (allDone) {
             await store2.updateJob(jobId, { status: "complete" });
+            try {
+              onReportReady(jobId);
+            } catch {
+              /* ignore */
+            }
             publish({
               type: "job",
               job_id: jobId,
@@ -326,6 +353,11 @@ export async function POST(req: NextRequest) {
         console.log(`[sessions/start] background simulate job=${jobId}`);
         try {
           await simulateJobNegotiations(jobId);
+          try {
+            onReportReady(jobId);
+          } catch {
+            /* ignore */
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           console.error("[sessions/start] simulate fatal", msg);

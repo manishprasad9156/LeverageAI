@@ -88,4 +88,6 @@ export interface BridgePairIntent {
   jobId: string;
   sessionId: string;
   jobSpecJson: string;
+  /** UCB1 playbook sentences for the negotiator (optional). */
+  playbookHint?: string;
 }

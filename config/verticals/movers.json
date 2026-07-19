@@ -199,7 +199,8 @@
       "name": "Carolina Haul Co",
       "role": "tough",
       "persona": "tough",
-      "role_label": "Tough on price",
+      "role_label": "The careful one",
+      "nature": "The careful one — careful crews, won't undercut quality just to win.",
       "public_blurb": "Full-service local movers \u2014 experienced crews, careful handling, premium insured moves.",
       "pricing_strategy_secret": "Opens high on labor+truck for 2BR local. Concedes when a real competing written bid is cited; protects floor near mid-benchmark.",
       "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
@@ -210,7 +211,8 @@
       "name": "MetroMove Pros",
       "role": "stonewaller",
       "persona": "stonewaller",
-      "role_label": "No phone quotes",
+      "role_label": "The cautious one",
+      "nature": "The cautious one — wants a survey before locking a price.",
       "public_blurb": "Regional moving company \u2014 in-home survey preferred before binding quotes.",
       "pricing_strategy_secret": "Refuses firm phone quotes. Pushes virtual/on-site survey. Session ends documented_decline with callback logged.",
       "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."
@@ -221,7 +223,8 @@
       "name": "BudgetBox Moving",
       "role": "upseller",
       "persona": "upseller",
-      "role_label": "Lowball + fees",
+      "role_label": "The bargain front",
+      "nature": "The bargain front — low sticker price; stairs and packing fees can stack up.",
       "public_blurb": "Affordable local moves \u2014 low sticker rates and same-week availability.",
       "pricing_strategy_secret": "Lowballs base move then layers packing materials, stair fees, long-carry, and fuel surcharges as itemized add-ons. Total may red-flag vs benchmark.",
       "_comment": "pricing_strategy_secret is NEVER sent to the negotiator agent or UI. Human/docs and counter-agent prompt isolation only."

@@ -177,22 +177,15 @@ export function buildDealReview(input: {
     ? verdicts.find((v) => v.vendor_id === winnerSession.vendor_id) ?? null
     : null;
 
+  // Concise, strong, jargon-free — 1–2 bullets max
   const why_top: string[] = [];
   if (top_pick && top_pick.total != null) {
     why_top.push(
-      `We pick ${top_pick.vendor_name} at ${formatUsd(
-        top_pick.total
-      )} because it is a complete written-style total (equipment, labor, and fees called out), not a teaser price.`
+      `${top_pick.vendor_name} at ${formatUsd(top_pick.total)}: full itemized price, not a teaser.`
     );
     if (mid != null) {
-      why_top.push(
-        `That sits in a believable range next to the market mid of about ${formatUsd(
-          mid
-        )} for this job type — not suspiciously low.`
-      );
+      why_top.push(`In line with the market mid (~${formatUsd(mid)}), not suspiciously low.`);
     }
-
-    // Leverage story if price dropped
     const chain = buildLeverageChain({
       session_id: winnerSession!.id,
       quotes: input.quotes,
@@ -200,29 +193,28 @@ export function buildDealReview(input: {
       transcripts: input.transcripts || [],
     });
     if (chain.some((c) => c.kind === "get_competing_bids")) {
-      why_top.push(
-        "Our agent also used a real competing bid from another shop on this same job to push the price down — that drop is documented, not a guess."
-      );
+      why_top.push("Price dropped after we showed a real competing bid from this same job.");
     }
-
-    why_top.push(
-      "You get a clear number you can compare and book against, with a paper trail of the call."
-    );
   } else {
-    why_top.push(
-      "No clean itemized winner yet. Either re-run negotiations or follow up on the callback commitments below."
-    );
+    why_top.push("No clean winner yet. Check callbacks below or run again.");
   }
 
   const how_others_compared = verdicts
     .filter((v) => !top_pick || v.vendor_id !== top_pick.vendor_id)
-    .map((v) => `${v.vendor_name}: ${v.plain}`);
+    .map((v) => {
+      if (v.red_flag && v.total != null) {
+        return `${v.vendor_name}: ${formatUsd(v.total)} — too far under market (risk of hidden fees).`;
+      }
+      if (v.outcome === "documented_decline" || v.outcome === "callback_commitment") {
+        return `${v.vendor_name}: no firm price on the phone.`;
+      }
+      if (v.total != null) return `${v.vendor_name}: ${formatUsd(v.total)}.`;
+      return `${v.vendor_name}: no quote.`;
+    });
 
   const how_we_negotiated = [
-    "Three AI negotiators called three providers at the same time (multi-agent orchestration).",
-    "Each call asked for an itemized installed total — not a vague ballpark.",
-    "Prices far under market mid are flagged as bait-risk and never ranked #1.",
-    "A review layer then compared all three outcomes and chose one recommended deal for you.",
+    "Three agents negotiated at the same time.",
+    "We only accept full itemized totals — bait prices never win.",
   ];
 
   // Confidence: more complete outcomes + clean winner → higher

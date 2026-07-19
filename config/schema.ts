@@ -42,6 +42,8 @@ export const VendorSchema = z.object({
   /** Alias for consumers that read `persona` */
   persona: z.string().optional(),
   role_label: z.string().optional(),
+  /** Non-technical one-liner for the chat header */
+  nature: z.string().optional(),
   /** Safe for UI / negotiator context */
   public_blurb: z.string().min(1),
   /**

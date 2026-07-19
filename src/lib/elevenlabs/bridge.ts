@@ -95,6 +95,7 @@ function sendInit(
       company_key: intent.companyKey,
       job_spec_json: intent.jobSpecJson,
       bridge_role: role,
+      playbook: intent.playbookHint || "",
     },
   });
 }
@@ -150,12 +151,15 @@ function buildKickoff(intent: BridgePairIntent): string {
     /* ignore */
   }
   const parts = [
-    "You are on a live phone call with a vendor dispatcher. Start now.",
+    "You are on a live negotiation with a vendor. Start now.",
     `Company key: ${intent.companyKey}.`,
     "Introduce yourself as an AI assistant negotiating for a homeowner, describe the job once, and ask for an itemized installed quote.",
     `Job JSON: ${JSON.stringify(job)}`,
     "Use tools when you have numbers. Close with a structured outcome when done.",
   ];
+  if (intent.playbookHint) {
+    parts.push(`Playbook (learned tactics to prefer): ${intent.playbookHint}`);
+  }
   return parts.join(" ");
 }
 

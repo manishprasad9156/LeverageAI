@@ -83,6 +83,31 @@ CREATE TABLE IF NOT EXISTS intake_drafts (
 CREATE INDEX IF NOT EXISTS intake_drafts_vertical_status_idx
   ON intake_drafts(vertical, status, updated_at DESC);
 
+CREATE TABLE IF NOT EXISTS negotiation_learnings (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vertical       text NOT NULL,
+  tactic         text NOT NULL,
+  context        text NULL,
+  outcome_delta  double precision NOT NULL DEFAULT 0,
+  sample_count   int NOT NULL DEFAULT 0,
+  updated_at     timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (vertical, tactic)
+);
+
+CREATE TABLE IF NOT EXISTS providers (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  vertical       text NOT NULL,
+  place_id       text,
+  name           text,
+  rating         double precision,
+  user_rating_count int,
+  phone          text,
+  address        text,
+  score          double precision,
+  payload        jsonb,
+  updated_at     timestamptz NOT NULL DEFAULT now()
+);
+
 -- Idempotent migrations for existing DBs
 ALTER TABLE jobs ADD COLUMN IF NOT EXISTS frozen_job_spec jsonb NULL;
 ALTER TABLE sessions ADD COLUMN IF NOT EXISTS negotiator_conversation_id text NULL;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getStore } from "@/lib/db";
 import { publish } from "@/lib/db/events";
+import { onSpecConfirmed } from "@/lib/orchestrator/runtime";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -33,6 +34,12 @@ export async function PATCH(_req: NextRequest, ctx: Ctx) {
     const job = await store.confirmJob(id);
     if (!job) {
       return NextResponse.json({ error: "Confirm failed" }, { status: 500 });
+    }
+
+    try {
+      onSpecConfirmed(job.id, job.vertical);
+    } catch (e) {
+      console.warn("[confirm] xstate", e);
     }
 
     publish({ type: "job", job_id: job.id, payload: job });
