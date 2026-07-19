@@ -24,6 +24,7 @@ import type {
 import { DiscoveryPanel } from "./DiscoveryPanel";
 import { LearningPanel } from "./LearningPanel";
 import { Top3Map } from "./Top3Map";
+import { SiteHeader } from "./SiteHeader";
 import { openDealPdf } from "@/lib/ui/exportDealPdf";
 
 const MODES = [
@@ -1052,13 +1053,7 @@ export function ProductWorkspace() {
         <CloudBackdrop />
 
         <div className="portal-content">
-        <header className="portal-header-merge sticky top-0 z-30">
-          <div className="mx-auto flex max-w-[var(--max)] items-center justify-between px-4 py-4 sm:px-6">
-            <a href="/" className="no-underline" aria-label="LEVERAGE home">
-              <span className="logo-leverage logo-plain">LEVERAGE</span>
-            </a>
-          </div>
-        </header>
+        <SiteHeader logoAsHomeLink />
 
         <main className="mx-auto max-w-[var(--max)] px-3 pb-24 pt-6 sm:px-5 sm:pt-10">
           {/* Hero + composer */}

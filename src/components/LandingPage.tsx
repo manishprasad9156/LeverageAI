@@ -1,10 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { SiteHeader } from "./SiteHeader";
 
 /**
- * Landing — same LEVERAGE wordmark placement as live portal (no A icon).
- * Close Smart Deals = real buttons (header + under headline).
+ * Landing — LEVERAGE matches live portal position (no A).
+ * Liquid-glass Close Smart Deals buttons; italic “name” / “lock”.
  */
 export function LandingPage() {
   const router = useRouter();
@@ -30,32 +31,21 @@ export function LandingPage() {
           <div className="landing-sky-veil" />
         </div>
 
-        {/* Same shell as ProductWorkspace header */}
-        <header className="portal-header-merge sticky top-0 z-30">
-          <div className="mx-auto flex max-w-[var(--max)] items-center justify-between px-4 py-4 sm:px-6">
-            <span className="logo-leverage logo-plain" aria-label="LEVERAGE">
-              LEVERAGE
-            </span>
-            <button
-              type="button"
-              className="btn-close-smart-deals"
-              onClick={goPortal}
-            >
-              Close Smart Deals
-              <span aria-hidden>→</span>
-            </button>
-          </div>
-        </header>
+        <SiteHeader showCta />
 
         <main className="landing-main">
           <section className="landing-hero">
             <h1 className="landing-headline font-instrument">
-              <span className="landing-line">You name the job.</span>
-              <span className="landing-line">We lock the price.</span>
+              <span className="landing-line">
+                You <em className="headline-em">name</em> the job.
+              </span>
+              <span className="landing-line">
+                We <em className="headline-em">lock</em> the price.
+              </span>
             </h1>
             <button
               type="button"
-              className="btn-close-smart-deals btn-close-smart-deals-lg"
+              className="btn-liquid-glass btn-liquid-glass-lg"
               onClick={goPortal}
             >
               Close Smart Deals
