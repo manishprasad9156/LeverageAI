@@ -9,6 +9,8 @@ import {
 } from "@/lib/review/booking";
 import { getPlaybook } from "@/lib/learning/extract";
 import { buildEvidenceBundle } from "@/lib/evidence/bundle";
+import { sanitizeTranscriptText } from "@/lib/evidence/transcript";
+import { evidencedQuotes } from "@/lib/evidence/quoteEvidence";
 
 export const runtime = "nodejs";
 
@@ -21,13 +23,18 @@ export async function GET(request: NextRequest, context: Ctx) {
     const job = await store.getJob(id);
     if (!job) return NextResponse.json({ error: "Job not found" }, { status: 404 });
 
-    const [sessions, quotes, transcripts, toolCalls, playbook] = await Promise.all([
+    const [sessions, quotesRaw, rawTranscripts, toolCalls, playbook] = await Promise.all([
       store.listSessionsByJob(id),
       store.listQuotesByJob(id),
       store.listTranscriptsByJob(id, 2000),
       store.listToolCallsByJob(id),
       getPlaybook(job.vertical),
     ]);
+    const transcripts = rawTranscripts.flatMap((event) => {
+      const text = sanitizeTranscriptText(event.text);
+      return text ? [{ ...event, text }] : [];
+    });
+    const quotes = evidencedQuotes(quotesRaw, transcripts);
     const vertical = loadVertical(job.vertical);
     const ranked = rankQuotes(quotes, vertical, sessions).map((quote) => ({
       ...quote,

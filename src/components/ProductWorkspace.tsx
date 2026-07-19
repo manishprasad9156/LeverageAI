@@ -26,6 +26,7 @@ import { LearningPanel } from "./LearningPanel";
 import { Top3Map } from "./Top3Map";
 import { SiteHeader } from "./SiteHeader";
 import { openDealPdf } from "@/lib/ui/exportDealPdf";
+import { isDisplayableTranscript } from "@/lib/evidence/transcript";
 
 const MODES = [
   {
@@ -356,6 +357,7 @@ function WaChat({
           .filter((line) => {
             const t = (line.text || "").trim();
             if (!t || t === "…" || t === "..." || t.length < 2) return false;
+            if (!isDisplayableTranscript(t)) return false;
             // Drop useless partials that look like truncated speech
             if (/^(Hello|Hi|Yes|I am|I'|We)[,.]?\s*(\.\.\.|…)?$/i.test(t))
               return false;

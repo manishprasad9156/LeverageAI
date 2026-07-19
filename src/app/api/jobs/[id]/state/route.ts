@@ -12,6 +12,8 @@ import {
   buildBookingRequestDraft,
   questionsBeforeBooking,
 } from "@/lib/review/booking";
+import { sanitizeTranscriptText } from "@/lib/evidence/transcript";
+import { evidencedQuotes } from "@/lib/evidence/quoteEvidence";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -37,7 +39,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    const [sessions, quotesRaw, transcripts, tool_calls] = await Promise.all([
+    const [sessions, quotesRaw, rawTranscripts, tool_calls] = await Promise.all([
       store.listSessionsByJob(id),
       store.listQuotesByJob(id),
       store.listTranscriptsByJob(id, 300),
@@ -64,9 +66,15 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
             s.status === "error"
         ));
 
-    // Only persisted quotes may be ranked. Transcript parsing is useful for
-    // diagnostics, never for silently manufacturing a successful quote.
-    const quotes = quotesRaw;
+    // Historical rows may include internal bridge prompts. Never return them
+    // to the UI or evidence surface, even if they predate the sanitation fix.
+    const transcripts = rawTranscripts.flatMap((event) => {
+      const text = sanitizeTranscriptText(event.text);
+      return text ? [{ ...event, text }] : [];
+    });
+
+    // A logged tool value is not a quote until the provider has spoken it.
+    const quotes = evidencedQuotes(quotesRaw, transcripts);
 
     const ranked: RankedQuote[] = rankQuotes(quotes, config, sessions).map(
       (r) => ({
@@ -86,7 +94,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
         (t) =>
           t.session_id === s.id && t.tool_name === "get_competing_bids"
       ),
-      current_total: s.current_total,
+      current_total: null,
     }));
 
     const deal_review = shouldReview
@@ -125,7 +133,7 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
     return NextResponse.json({
       job,
       sessions: sessionsEnriched,
-      quotes: quotesRaw, // real DB quotes only for quote list
+      quotes,
       transcripts,
       tool_calls,
       ranked,

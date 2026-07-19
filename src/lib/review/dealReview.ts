@@ -160,7 +160,9 @@ export function buildDealReview(input: {
   const totalsBySession = new Map<string, number | null>();
   for (const s of input.sessions) {
     const q = latestBySession.get(s.id);
-    const total = q?.total ?? s.current_total ?? null;
+    // A session field may be written before a provider has said the amount.
+    // Only a persisted, evidence-qualified itemized quote may affect advice.
+    const total = q?.total ?? null;
     totalsBySession.set(s.id, total);
   }
 

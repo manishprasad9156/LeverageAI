@@ -17,6 +17,7 @@ import {
   redFlagThresholdPct,
   vendorDisplayName,
 } from "./types";
+import { isDisplayableTranscript } from "@/lib/evidence/transcript";
 
 export function emptySessions(vertical: VerticalConfig): SessionCard[] {
   return vertical.vendors.map((v) => ({
@@ -779,13 +780,15 @@ export function normalizeApiState(
               vendorMeta?.role ||
               vendor_id,
             status: finalStatus,
+            // current_total is an internal session field, not proof of an
+            // offered price. The API supplies only transcript-evidenced quotes.
             current_price:
-              typeof r.current_total === "number"
-                ? r.current_total
-                : typeof latestQ?.total === "number"
-                  ? (latestQ.total as number)
-                  : null,
-            transcript: transcriptsBySession.get(sid) || [],
+              typeof latestQ?.total === "number"
+                ? (latestQ.total as number)
+                : null,
+            transcript: (transcriptsBySession.get(sid) || []).filter((line) =>
+              isDisplayableTranscript(line.text),
+            ),
             competing_bid_used: Boolean(r.competing_bid_used),
             audio_url: (r.audio_url as string) || null,
             outcome,

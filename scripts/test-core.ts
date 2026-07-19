@@ -14,6 +14,7 @@ import {
   enforceNoBookingCommitment,
   sanitizeTranscriptText,
 } from "../src/lib/evidence/transcript";
+import { evidencedQuotes } from "../src/lib/evidence/quoteEvidence";
 
 async function main() {
   const ids = listVerticalIds();
@@ -143,8 +144,35 @@ async function main() {
     enforceNoBookingCommitment("We'll take it, please schedule the work."),
     /cannot book, purchase, authorize work/i,
   );
-
   const createdAt = new Date(0).toISOString();
+  const evidenceQuote = {
+    id: "q-evidence",
+    session_id: "s-evidence",
+    job_id: "j1",
+    vendor_id: "tough",
+    line_items: [{ label: "Labor", amount: 590 }],
+    total: 590,
+    red_flag: false,
+    notes: null,
+    created_at: createdAt,
+  };
+  assert.equal(
+    evidencedQuotes([evidenceQuote], []).length,
+    0,
+    "a tool/session total must not display without provider speech",
+  );
+  assert.equal(
+    evidencedQuotes([evidenceQuote], [{
+      id: 1,
+      session_id: "s-evidence",
+      ts_ms: 1,
+      speaker: "vendor",
+      text: "The itemized total is $590.",
+      created_at: createdAt,
+    }]).length,
+    1,
+  );
+
   const bundle = await buildEvidenceBundle({
     generated_at: createdAt,
     vertical_name: "HVAC",

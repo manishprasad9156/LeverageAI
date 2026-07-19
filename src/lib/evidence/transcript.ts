@@ -1,9 +1,12 @@
 /** Keep evidence limited to words actually spoken by the two call parties. */
 const INTERNAL_PROMPT_MARKERS = [
   "you are on a live call with a vendor dispatcher",
+  "sound like a calm buying consultant",
   "required quote categories:",
   "company key:",
   "job json:",
+  "counter strategy:",
+  "rules: one idea per turn",
   "playbook (soft tactics only",
   "when you have a firm total: log_quote",
   "conversation_initiation_client_data",
@@ -19,6 +22,11 @@ export function sanitizeTranscriptText(value: unknown): string | null {
     return null;
   }
   return text.slice(0, 4000);
+}
+
+/** Safe for API and client rendering; old persisted rows are cleaned on read. */
+export function isDisplayableTranscript(value: unknown): value is string {
+  return sanitizeTranscriptText(value) !== null;
 }
 
 /** The product may request details, but it never books or accepts work. */
