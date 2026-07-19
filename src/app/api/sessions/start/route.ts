@@ -352,17 +352,22 @@ export async function POST(req: NextRequest) {
 
           const store2 = getStore();
           for (const s of await store2.listSessionsByJob(jobId)) {
-            if (s.negotiator_conversation_id) {
-              for (let attempt = 1; attempt <= 3; attempt += 1) {
+            const recordingConversationId =
+              s.negotiator_conversation_id ?? s.counter_conversation_id;
+            if (recordingConversationId) {
+              // ElevenLabs marks a conversation done before its MP3 is always
+              // retrievable. Stay inside Vercel's 300s limit and retry long
+              // enough for post-call rendering, using either side's ID.
+              for (let attempt = 1; attempt <= 8; attempt += 1) {
                 const recording = await fetchAndStoreRecording(
                   s.id,
-                  s.negotiator_conversation_id,
+                  recordingConversationId,
                 ).catch((e) => {
                   console.warn("[sessions/start] recording", s.id, e);
                   return { audio_url: null, meta: null };
                 });
                 if (recording.audio_url) break;
-                if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+                if (attempt < 8) await new Promise((resolve) => setTimeout(resolve, 4_000));
               }
             }
           }

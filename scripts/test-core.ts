@@ -16,6 +16,7 @@ import {
   sanitizeTranscriptText,
 } from "../src/lib/evidence/transcript";
 import { evidencedQuotes } from "../src/lib/evidence/quoteEvidence";
+import { blobStorageMode } from "../src/lib/storage/blobAuth";
 
 async function main() {
   const ids = listVerticalIds();
@@ -109,6 +110,11 @@ async function main() {
       nowMs: timestamp * 1000,
     }).ok,
     false,
+  );
+  assert.equal(
+    blobStorageMode({ BLOB_READ_WRITE_TOKEN: "test-token" }),
+    "read-write-token",
+    "recording persistence must use durable Blob when token is configured",
   );
 
   const learnings = await extractLearningsFromSession({
