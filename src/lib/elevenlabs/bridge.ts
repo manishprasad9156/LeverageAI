@@ -51,6 +51,8 @@ type PendingTurn = {
   fromRole: "negotiator" | "counter";
 };
 
+const PCM_16KHZ_SILENCE = Buffer.alloc(16_000 * 2 * 0.7).toString("base64");
+
 function asObj(data: WebSocket.RawData): JsonMsg | null {
   try {
     const text =
@@ -147,6 +149,12 @@ function sendUserAudio(ws: WebSocket, audioChunk: string) {
   // ElevenLabs' WebSocket wire format is intentionally different from other
   // client events: the base64 payload is the top-level property.
   sendJson(ws, { user_audio_chunk: audioChunk });
+}
+
+function sendEndOfSpeechSilence(ws: WebSocket) {
+  // ElevenLabs VAD needs a short silent tail to finalize a relayed utterance.
+  // Without it, the receiving agent can leave the turn open indefinitely.
+  sendUserAudio(ws, PCM_16KHZ_SILENCE);
 }
 
 /**
@@ -272,6 +280,8 @@ export async function runAgentBridge(
   const seenNeg = new Set<string>();
   const seenCtr = new Set<string>();
   const audioForwarded = { negotiator: false, counter: false };
+  const audioIdleTimers: Partial<Record<"negotiator" | "counter", ReturnType<typeof setTimeout>>> = {};
+  const agentTurnCount = { negotiator: 0, counter: 0 };
   const pendingByRole: Partial<
     Record<"negotiator" | "counter", PendingTurn>
   > = {};
@@ -314,12 +324,31 @@ export async function runAgentBridge(
     }
   };
 
+  const clearAudioIdle = (role: "negotiator" | "counter") => {
+    const timer = audioIdleTimers[role];
+    if (timer) clearTimeout(timer);
+    delete audioIdleTimers[role];
+  };
+
+  const scheduleAudioTurnEnd = (
+    fromRole: "negotiator" | "counter",
+    to: WebSocket,
+  ) => {
+    clearAudioIdle(fromRole);
+    audioIdleTimers[fromRole] = setTimeout(() => {
+      delete audioIdleTimers[fromRole];
+      if (!closed && to.readyState === WebSocket.OPEN) sendEndOfSpeechSilence(to);
+    }, 900);
+  };
+
   const forceClose = (reason: string): Promise<void> => {
     // Single closePromise chain — concurrent callers share one write
     if (closePromise) return closePromise;
     closePromise = (async () => {
       clearPending("negotiator");
       clearPending("counter");
+      clearAudioIdle("negotiator");
+      clearAudioIdle("counter");
 
       try {
         const session = await store.getSession(intent.sessionId);
@@ -457,6 +486,7 @@ export async function runAgentBridge(
     seen.add(key);
 
     turns += 1;
+    agentTurnCount[fromRole] += 1;
     const speaker = fromRole === "negotiator" ? "negotiator" : "vendor";
     void append(speaker, trimmed);
     maybeAutoCloseFromSpeech(fromRole, trimmed);
@@ -472,6 +502,20 @@ export async function runAgentBridge(
       !audioForwarded[fromRole]
     ) {
       sendUserMessage(to, trimmed);
+    } else if (audioForwarded[fromRole]) {
+      // Audio is the primary transport. A semantic fallback only fires if the
+      // receiving agent remains silent after the audio/VAD turn has completed.
+      const peer = fromRole === "negotiator" ? "counter" : "negotiator";
+      const peerTurnsBeforeAudio = agentTurnCount[peer];
+      setTimeout(() => {
+        if (
+          !closed &&
+          to.readyState === WebSocket.OPEN &&
+          agentTurnCount[peer] === peerTurnsBeforeAudio
+        ) {
+          sendUserMessage(to, trimmed);
+        }
+      }, 4_000);
     }
   };
 
@@ -566,6 +610,7 @@ export async function runAgentBridge(
         if (audioChunk && to.readyState === WebSocket.OPEN && !closed) {
           audioForwarded[fromRole] = true;
           sendUserAudio(to, audioChunk);
+          scheduleAudioTurnEnd(fromRole, to);
         }
 
         const agentText = extractFinalAgentText(msg);
@@ -675,6 +720,8 @@ export async function runAgentBridge(
     clearInterval(watchdog);
     clearPending("negotiator");
     clearPending("counter");
+    clearAudioIdle("negotiator");
+    clearAudioIdle("counter");
     // Drain any in-flight close before sockets/process go away
     if (closePromise) {
       try {
