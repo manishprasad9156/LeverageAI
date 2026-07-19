@@ -14,6 +14,7 @@ import {
 } from "@/lib/review/booking";
 import { cleanTranscriptEvents } from "@/lib/evidence/transcript";
 import { evidencedQuotes } from "@/lib/evidence/quoteEvidence";
+import { closeSession } from "@/lib/tools/closeSession";
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -23,6 +24,39 @@ function sessionTerminal(s: Session): boolean {
     s.status === "error" ||
     s.outcome_type != null
   );
+}
+
+/**
+ * A Vercel background function can be interrupted after a WebSocket opens but
+ * before its bridge has a chance to write an outcome. Polling is already the
+ * product's durable live transport, so use it as a last-resort reconciler:
+ * stale sessions become an explicit decline, never a guessed price.
+ */
+async function reconcileStaleLiveSessions(sessions: Session[]): Promise<boolean> {
+  const staleBefore = Date.now() - 105_000;
+  const stale = sessions.filter((session) => {
+    if (sessionTerminal(session)) return false;
+    if (session.status !== "connecting" && session.status !== "live") {
+      return false;
+    }
+    const lastActivity = new Date(
+      session.last_event_at ?? session.updated_at ?? session.created_at,
+    ).getTime();
+    return Number.isFinite(lastActivity) && lastActivity < staleBefore;
+  });
+
+  await Promise.all(
+    stale.map((session) =>
+      closeSession({
+        session_id: session.id,
+        job_id: session.job_id,
+        outcome_type: "documented_decline",
+        summary:
+          "Connection timed out before a reliable provider response; no price was inferred.",
+      }),
+    ),
+  );
+  return stale.length > 0;
 }
 
 /**
@@ -39,12 +73,25 @@ export async function GET(_req: NextRequest, ctx: Ctx) {
       return NextResponse.json({ error: "Job not found" }, { status: 404 });
     }
 
-    const [sessions, quotesRaw, rawTranscripts, tool_calls] = await Promise.all([
+    let [sessions, quotesRaw, rawTranscripts, tool_calls] = await Promise.all([
       store.listSessionsByJob(id),
       store.listQuotesByJob(id),
       store.listTranscriptsByJob(id, 300),
       store.listToolCallsByJob(id),
     ]);
+
+    if (await reconcileStaleLiveSessions(sessions)) {
+      [sessions, quotesRaw, rawTranscripts, tool_calls] = await Promise.all([
+        store.listSessionsByJob(id),
+        store.listQuotesByJob(id),
+        store.listTranscriptsByJob(id, 300),
+        store.listToolCallsByJob(id),
+      ]);
+      if (sessions.length > 0 && sessions.every(sessionTerminal)) {
+        await store.updateJob(id, { status: "complete" });
+        job.status = "complete";
+      }
+    }
 
     let config: VerticalConfig | undefined;
     try {
