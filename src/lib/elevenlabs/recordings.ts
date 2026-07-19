@@ -26,6 +26,7 @@ async function putVercelBlob(
       access: "private",
       contentType: "audio/mpeg",
       addRandomSuffix: false,
+      allowOverwrite: true,
       ...(mode === "read-write-token"
         ? { token }
         : { storeId: process.env.BLOB_STORE_ID!.trim() }),
